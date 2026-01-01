@@ -1,0 +1,54 @@
+# golangci-lint configuration for termiflow
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - bodyclose
+    - noctx
+    - exportloopref
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/termiflow/termiflow
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - noctx
+    # Exclude shadow checking in tests
+    - path: _test\.go
+      text: "shadow"
+    # Allow unused parameters in interface implementations
+    - text: "unused-parameter"
+      linters:
+        - revive
+  max-issues-per-linter: 50
+  max-same-issues: 10

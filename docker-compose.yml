@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  termiflow:
+    build: .
+    image: termiflow:latest
+    container_name: termiflow
+    volumes:
+      - ./config:/home/termiflow/.config/termiflow
+      - ./data:/home/termiflow/.local/share/termiflow
+      - ./cache:/home/termiflow/.cache/termiflow
+    environment:
+      - TERMFLOW_OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TERMFLOW_ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TERMFLOW_TAVILY_API_KEY=${TAVILY_API_KEY}
+    # For running feed updates on a schedule
+    # command: ["feed", "--refresh"]

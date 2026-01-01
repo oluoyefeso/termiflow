@@ -1,0 +1,51 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config with secrets (example is fine)
+config.toml
+!configs/config.example.toml
+
+# Local data
+*.db
+*.db-journal
+
+# Environment files
+.env
+.env.local
+
+.claude
+
+agents/
+
+# Development notes
+todo.md
+claude.md
+CLAUDE.md
+

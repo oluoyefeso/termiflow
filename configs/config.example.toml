@@ -1,0 +1,54 @@
+# Termflow Configuration
+# Copy this file to ~/.config/termiflow/config.toml
+
+[general]
+# Default LLM provider: "openai", "anthropic", "local"
+default_provider = "openai"
+
+# Output style: "pretty", "minimal", "plain"
+output_style = "pretty"
+
+# Cache directory for offline mode
+cache_dir = "~/.cache/termiflow"
+
+# How many feed items to show by default
+feed_limit = 20
+
+[providers.openai]
+api_key = ""  # Or use TERMFLOW_OPENAI_API_KEY env var
+model = "gpt-4o"
+base_url = "https://api.openai.com/v1"  # Can override for Azure, proxies
+
+[providers.anthropic]
+api_key = ""  # Or use TERMFLOW_ANTHROPIC_API_KEY env var
+model = "claude-sonnet-4-20250514"
+
+[providers.local]
+# OpenAI-compatible local server (Ollama, llama.cpp, LM Studio, etc.)
+base_url = "http://localhost:11434/v1"
+model = "llama3"
+
+[search.tavily]
+api_key = ""  # Or use TERMFLOW_TAVILY_API_KEY env var
+
+[search.rss]
+# Global RSS feeds to include (in addition to topic-specific ones)
+feeds = []
+
+[search.scraper]
+# User agent for web scraping
+user_agent = "termiflow/1.0"
+# Request timeout in seconds
+timeout = 30
+# Respect robots.txt
+respect_robots = true
+
+[schedule]
+# Default update frequency: "hourly", "daily", "weekly"
+default_frequency = "daily"
+
+# Time for daily updates (24h format, in local timezone)
+daily_time = "08:00"
+
+# Day for weekly updates (0 = Sunday, 1 = Monday, etc.)
+weekly_day = 1
