@@ -1,0 +1,144 @@
+# GoReleaser configuration for termiflow
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: termiflow
+    main: ./cmd/termiflow
+    binary: termiflow
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.Commit={{.ShortCommit}}
+      - -X main.Date={{.Date}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+      - configs/config.example.toml
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: termiflow
+    name: termiflow
+  draft: false
+  prerelease: auto
+  mode: append
+  header: |
+    ## termiflow {{ .Tag }}
+
+    Terminal-native AI intelligence tool for developers.
+  footer: |
+    ---
+
+    ### Installation
+
+    **Using Go:**
+    ```bash
+    go install github.com/termiflow/termiflow/cmd/termiflow@{{ .Tag }}
+    ```
+
+    **Using Homebrew (macOS/Linux):**
+    ```bash
+    brew install termiflow/tap/termiflow
+    ```
+
+    **Manual download:**
+    Download the appropriate binary for your platform from the assets below.
+
+brews:
+  - name: termiflow
+    repository:
+      owner: termiflow
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/termiflow/termiflow"
+    description: "Terminal-native AI intelligence tool for developers"
+    license: "MIT"
+    skip_upload: auto
+    test: |
+      system "#{bin}/termiflow", "version"
+    install: |
+      bin.install "termiflow"
+
+nfpms:
+  - id: packages
+    package_name: termiflow
+    vendor: termiflow
+    homepage: https://github.com/termiflow/termiflow
+    maintainer: termiflow <termiflow@example.com>
+    description: Terminal-native AI intelligence tool for developers
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+
+announce:
+  skip: true
