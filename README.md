@@ -8,10 +8,10 @@ Terminal-native AI intelligence tool that lets developers ask questions and subs
 
 ```bash
 # Using Go
-go install github.com/termiflow/termiflow/cmd/termiflow@latest
+go install github.com/oluoyefeso/termiflow/cmd/termiflow@latest
 
 # Or build from source
-git clone https://github.com/termiflow/termiflow.git
+git clone https://github.com/oluoyefeso/termiflow.git
 cd termiflow
 make build
 ```

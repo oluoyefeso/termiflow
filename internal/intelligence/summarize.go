@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/termiflow/termiflow/internal/providers/llm"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 )
 
 // Summarize generates a concise summary of content for a given topic

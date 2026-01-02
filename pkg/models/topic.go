@@ -1,12 +1,12 @@
 package models
 
 type Category struct {
-	ID           int64    `json:"id"`
-	Name         string   `json:"name"`
-	DisplayName  string   `json:"display_name"`
-	Description  string   `json:"description"`
-	DefaultRSS   []string `json:"default_rss,omitempty"`
-	Keywords     []string `json:"keywords,omitempty"`
+	ID          int64    `json:"id"`
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name"`
+	Description string   `json:"description"`
+	DefaultRSS  []string `json:"default_rss,omitempty"`
+	Keywords    []string `json:"keywords,omitempty"`
 }
 
 var DefaultCategories = []Category{

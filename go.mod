@@ -1,4 +1,4 @@
-module github.com/termiflow/termiflow
+module github.com/oluoyefeso/termiflow
 
 go 1.22
 

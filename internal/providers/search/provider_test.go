@@ -29,6 +29,15 @@ func TestSearchResult(t *testing.T) {
 	if result.Source != "tavily" {
 		t.Errorf("Source = %q, want %q", result.Source, "tavily")
 	}
+	if result.Snippet != "Test snippet" {
+		t.Errorf("Snippet = %q, want %q", result.Snippet, "Test snippet")
+	}
+	if result.Content != "Full content" {
+		t.Errorf("Content = %q, want %q", result.Content, "Full content")
+	}
+	if !result.PublishedAt.Equal(now) {
+		t.Errorf("PublishedAt = %v, want %v", result.PublishedAt, now)
+	}
 }
 
 func TestSearchRequest(t *testing.T) {
@@ -217,6 +226,12 @@ func TestSearchResultFields(t *testing.T) {
 	if !r.PublishedAt.Equal(now) {
 		t.Error("PublishedAt mismatch")
 	}
+	if r.URL != "https://example.com" {
+		t.Error("URL mismatch")
+	}
+	if r.Source != "test-source" {
+		t.Error("Source mismatch")
+	}
 }
 
 func TestSearchRequest_DefaultMaxResults(t *testing.T) {
@@ -224,6 +239,9 @@ func TestSearchRequest_DefaultMaxResults(t *testing.T) {
 		Query: "test",
 	}
 
+	if req.Query != "test" {
+		t.Errorf("Query = %q, want %q", req.Query, "test")
+	}
 	if req.MaxResults != 0 {
 		t.Errorf("Default MaxResults should be 0 (handled by provider)")
 	}
@@ -248,10 +266,10 @@ func TestContextCancellation(t *testing.T) {
 
 	p := NewTavilyProvider("test-key")
 
-	// The search should fail due to cancelled context
+	// The search should fail due to canceled context
 	// Note: This tests the pattern, actual behavior depends on implementation
 	if p.Available() && ctx.Err() != nil {
-		// Context is cancelled, request should fail
-		t.Log("Context cancellation test passed - context was cancelled")
+		// Context is canceled, request should fail
+		t.Log("Context cancellation test passed - context was canceled")
 	}
 }

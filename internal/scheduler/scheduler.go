@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/termiflow/termiflow/internal/db"
-	"github.com/termiflow/termiflow/internal/intelligence"
-	"github.com/termiflow/termiflow/internal/providers/llm"
-	"github.com/termiflow/termiflow/internal/providers/search"
-	"github.com/termiflow/termiflow/pkg/models"
+	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/intelligence"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
+	"github.com/oluoyefeso/termiflow/internal/providers/search"
+	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
 type Scheduler struct {

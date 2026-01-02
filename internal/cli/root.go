@@ -2,20 +2,20 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/termiflow/termiflow/internal/config"
-	"github.com/termiflow/termiflow/internal/db"
-	"github.com/termiflow/termiflow/internal/ui"
+
+	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 var (
-	cfgFile   string
-	provider  string
-	quiet     bool
-	debug     bool
-	noColor   bool
+	cfgFile  string
+	provider string
+	quiet    bool
+	debug    bool
+	noColor  bool
 
 	version string
 	commit  string
@@ -97,9 +97,4 @@ func getProvider() string {
 		return provider
 	}
 	return config.Get().General.DefaultProvider
-}
-
-func exitWithError(msg string) {
-	fmt.Fprint(os.Stderr, ui.Error(msg))
-	os.Exit(1)
 }

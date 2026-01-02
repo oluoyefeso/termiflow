@@ -5,7 +5,8 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
-	"github.com/termiflow/termiflow/internal/ui"
+
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 var versionCmd = &cobra.Command{

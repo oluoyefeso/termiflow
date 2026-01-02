@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/termiflow/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/config"
 )
 
 func TestGetProvider(t *testing.T) {
