@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/termiflow/termiflow/internal/cli"
+	"github.com/oluoyefeso/termiflow/internal/cli"
 )
 
 var (

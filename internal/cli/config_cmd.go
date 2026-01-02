@@ -10,8 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/termiflow/termiflow/internal/config"
-	"github.com/termiflow/termiflow/internal/ui"
+
+	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 var configCmd = &cobra.Command{

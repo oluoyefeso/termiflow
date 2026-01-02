@@ -32,13 +32,13 @@ func (p *TavilyProvider) Available() bool {
 }
 
 type tavilyRequest struct {
-	APIKey           string `json:"api_key"`
-	Query            string `json:"query"`
-	SearchDepth      string `json:"search_depth,omitempty"`
-	IncludeAnswer    bool   `json:"include_answer,omitempty"`
-	IncludeRawContent bool  `json:"include_raw_content,omitempty"`
-	MaxResults       int    `json:"max_results,omitempty"`
-	Days             int    `json:"days,omitempty"`
+	APIKey            string `json:"api_key"`
+	Query             string `json:"query"`
+	SearchDepth       string `json:"search_depth,omitempty"`
+	IncludeAnswer     bool   `json:"include_answer,omitempty"`
+	IncludeRawContent bool   `json:"include_raw_content,omitempty"`
+	MaxResults        int    `json:"max_results,omitempty"`
+	Days              int    `json:"days,omitempty"`
 }
 
 type tavilyResponse struct {
@@ -60,13 +60,13 @@ func (p *TavilyProvider) Search(ctx context.Context, req SearchRequest) ([]Searc
 	days := timeRangeToDays(req.TimeRange)
 
 	body := tavilyRequest{
-		APIKey:           p.apiKey,
-		Query:            req.Query,
-		SearchDepth:      "advanced",
-		IncludeAnswer:    false,
+		APIKey:            p.apiKey,
+		Query:             req.Query,
+		SearchDepth:       "advanced",
+		IncludeAnswer:     false,
 		IncludeRawContent: false,
-		MaxResults:       maxResults,
-		Days:             days,
+		MaxResults:        maxResults,
+		Days:              days,
 	}
 
 	jsonBody, err := json.Marshal(body)

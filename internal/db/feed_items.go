@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/termiflow/termiflow/pkg/models"
+	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
 func CreateFeedItem(item *models.FeedItem) error {
@@ -30,7 +30,7 @@ func CreateFeedItems(items []*models.FeedItem) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.Prepare(`
 		INSERT INTO feed_items (subscription_id, title, summary, content, source_name, source_url, published_at, relevance_score, tags)
@@ -138,7 +138,7 @@ func MarkItemsRead(ids []int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.Prepare(`UPDATE feed_items SET is_read = 1 WHERE id = ?`)
 	if err != nil {

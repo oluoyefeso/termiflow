@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/termiflow/termiflow/pkg/models"
+	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
 func CreateSubscription(sub *models.Subscription) error {

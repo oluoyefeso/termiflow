@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/termiflow/termiflow/internal/config"
-	"github.com/termiflow/termiflow/internal/db"
-	"github.com/termiflow/termiflow/internal/ui"
-	"github.com/termiflow/termiflow/pkg/models"
+
+	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/ui"
+	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
 var subHourly bool

@@ -86,7 +86,7 @@ func (p *AnthropicProvider) Complete(ctx context.Context, req CompletionRequest)
 		if m.Role == "system" {
 			systemPrompt = m.Content
 		} else {
-			messages = append(messages, anthropicMessage{Role: m.Role, Content: m.Content})
+			messages = append(messages, anthropicMessage(m))
 		}
 	}
 
@@ -154,7 +154,7 @@ func (p *AnthropicProvider) Stream(ctx context.Context, req CompletionRequest) (
 		if m.Role == "system" {
 			systemPrompt = m.Content
 		} else {
-			messages = append(messages, anthropicMessage{Role: m.Role, Content: m.Content})
+			messages = append(messages, anthropicMessage(m))
 		}
 	}
 
@@ -181,7 +181,7 @@ func (p *AnthropicProvider) Stream(ctx context.Context, req CompletionRequest) (
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 	httpReq.Header.Set("Accept", "text/event-stream")
 
-	resp, err := p.client.Do(httpReq)
+	resp, err := p.client.Do(httpReq) //nolint:bodyclose // closed in goroutine
 	if err != nil {
 		return nil, err
 	}

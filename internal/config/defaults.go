@@ -8,11 +8,11 @@ const (
 	DefaultDailyTime   = "08:00"
 	DefaultWeeklyDay   = 1
 
-	DefaultOpenAIModel     = "gpt-4o"
-	DefaultOpenAIBaseURL   = "https://api.openai.com/v1"
-	DefaultAnthropicModel  = "claude-sonnet-4-20250514"
-	DefaultLocalBaseURL    = "http://localhost:11434/v1"
-	DefaultLocalModel      = "llama3"
+	DefaultOpenAIModel    = "gpt-4o"
+	DefaultOpenAIBaseURL  = "https://api.openai.com/v1"
+	DefaultAnthropicModel = "claude-sonnet-4-20250514"
+	DefaultLocalBaseURL   = "http://localhost:11434/v1"
+	DefaultLocalModel     = "llama3"
 
 	DefaultScraperUserAgent = "termiflow/1.0"
 	DefaultScraperTimeout   = 30

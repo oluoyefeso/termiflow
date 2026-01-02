@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/termiflow/termiflow/pkg/models"
+	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
 func setupTestDB(t *testing.T) func() {

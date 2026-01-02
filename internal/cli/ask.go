@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/termiflow/termiflow/internal/config"
-	"github.com/termiflow/termiflow/internal/providers/llm"
-	"github.com/termiflow/termiflow/internal/providers/search"
-	"github.com/termiflow/termiflow/internal/ui"
+
+	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
+	"github.com/oluoyefeso/termiflow/internal/providers/search"
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 var askSources int

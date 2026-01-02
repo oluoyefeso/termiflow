@@ -3,8 +3,8 @@ package intelligence
 import (
 	"context"
 
-	"github.com/termiflow/termiflow/internal/providers/llm"
-	"github.com/termiflow/termiflow/internal/providers/search"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
+	"github.com/oluoyefeso/termiflow/internal/providers/search"
 )
 
 type AskResult struct {

@@ -14,7 +14,7 @@ type Spinner struct {
 func NewSpinner(message string) *Spinner {
 	s := spinner.New(spinner.CharSets[14], 80*time.Millisecond)
 	s.Suffix = " " + message
-	s.Color("cyan")
+	_ = s.Color("cyan")
 	return &Spinner{s: s}
 }
 

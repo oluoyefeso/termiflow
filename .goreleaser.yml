@@ -99,7 +99,7 @@ release:
 
     **Using Go:**
     ```bash
-    go install github.com/termiflow/termiflow/cmd/termiflow@{{ .Tag }}
+    go install github.com/oluoyefeso/termiflow/cmd/termiflow@{{ .Tag }}
     ```
 
     **Using Homebrew (macOS/Linux):**
@@ -117,7 +117,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
-    homepage: "https://github.com/termiflow/termiflow"
+    homepage: "https://github.com/oluoyefeso/termiflow"
     description: "Terminal-native AI intelligence tool for developers"
     license: "MIT"
     skip_upload: auto
@@ -130,7 +130,7 @@ nfpms:
   - id: packages
     package_name: termiflow
     vendor: termiflow
-    homepage: https://github.com/termiflow/termiflow
+    homepage: https://github.com/oluoyefeso/termiflow
     maintainer: termiflow <termiflow@example.com>
     description: Terminal-native AI intelligence tool for developers
     license: MIT

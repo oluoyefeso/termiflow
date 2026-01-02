@@ -3,7 +3,7 @@ package db
 import (
 	"encoding/json"
 
-	"github.com/termiflow/termiflow/pkg/models"
+	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
 func RunMigrations() error {

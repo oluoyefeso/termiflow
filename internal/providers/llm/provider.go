@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/termiflow/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/config"
 )
 
 type Message struct {

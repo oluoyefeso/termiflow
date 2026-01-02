@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/termiflow/termiflow/internal/config"
 	_ "modernc.org/sqlite"
+
+	"github.com/oluoyefeso/termiflow/internal/config"
 )
 
 var db *sql.DB

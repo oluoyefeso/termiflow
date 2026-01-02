@@ -7,8 +7,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/termiflow/termiflow/internal/db"
-	"github.com/termiflow/termiflow/internal/ui"
+
+	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 var unsubAll bool
@@ -80,7 +81,7 @@ func unsubscribeAll() error {
 		response, _ := reader.ReadString('\n')
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
-			fmt.Println("Cancelled.")
+			fmt.Println("Canceled.")
 			return nil
 		}
 	}

@@ -73,7 +73,7 @@ type openAIResponse struct {
 func (p *OpenAIProvider) Complete(ctx context.Context, req CompletionRequest) (*CompletionResponse, error) {
 	messages := make([]openAIMessage, len(req.Messages))
 	for i, m := range req.Messages {
-		messages[i] = openAIMessage{Role: m.Role, Content: m.Content}
+		messages[i] = openAIMessage(m)
 	}
 
 	body := openAIRequest{
@@ -131,7 +131,7 @@ func (p *OpenAIProvider) Complete(ctx context.Context, req CompletionRequest) (*
 func (p *OpenAIProvider) Stream(ctx context.Context, req CompletionRequest) (<-chan StreamChunk, error) {
 	messages := make([]openAIMessage, len(req.Messages))
 	for i, m := range req.Messages {
-		messages[i] = openAIMessage{Role: m.Role, Content: m.Content}
+		messages[i] = openAIMessage(m)
 	}
 
 	body := openAIRequest{
@@ -156,7 +156,7 @@ func (p *OpenAIProvider) Stream(ctx context.Context, req CompletionRequest) (<-c
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 	httpReq.Header.Set("Accept", "text/event-stream")
 
-	resp, err := p.client.Do(httpReq)
+	resp, err := p.client.Do(httpReq) //nolint:bodyclose // closed in goroutine
 	if err != nil {
 		return nil, err
 	}

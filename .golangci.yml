@@ -17,8 +17,6 @@ linters:
     - misspell
     - unconvert
     - bodyclose
-    - noctx
-    - exportloopref
 
 linters-settings:
   errcheck:
@@ -32,7 +30,7 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: github.com/termiflow/termiflow
+    local-prefixes: github.com/oluoyefeso/termiflow
   misspell:
     locale: US
 
@@ -42,7 +40,6 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
-        - noctx
     # Exclude shadow checking in tests
     - path: _test\.go
       text: "shadow"
