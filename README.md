@@ -156,4 +156,4 @@ make release
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+GPL License - see [LICENSE](LICENSE) for details.
