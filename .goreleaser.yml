@@ -119,8 +119,8 @@ brews:
     directory: Formula
     homepage: "https://github.com/oluoyefeso/termiflow"
     description: "Terminal-native AI intelligence tool for developers"
-    license: "MIT"
-    skip_upload: auto
+    license: "GPL-3.0"
+    skip_upload: true
     test: |
       system "#{bin}/termiflow", "version"
     install: |
@@ -133,7 +133,7 @@ nfpms:
     homepage: https://github.com/oluoyefeso/termiflow
     maintainer: termiflow <termiflow@example.com>
     description: Terminal-native AI intelligence tool for developers
-    license: MIT
+    license: GPL-3.0
     formats:
       - deb
       - rpm
