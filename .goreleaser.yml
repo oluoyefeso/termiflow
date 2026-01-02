@@ -83,7 +83,7 @@ changelog:
 
 release:
   github:
-    owner: termiflow
+    owner: oluoyefeso
     name: termiflow
   draft: false
   prerelease: auto
@@ -113,7 +113,7 @@ release:
 brews:
   - name: termiflow
     repository:
-      owner: termiflow
+      owner: oluoyefeso
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
