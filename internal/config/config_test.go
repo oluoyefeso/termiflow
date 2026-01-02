@@ -3,10 +3,30 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/spf13/viper"
 )
+
+// setTestHome sets the home directory for testing across platforms.
+// On Windows, os.UserHomeDir() uses USERPROFILE, not HOME.
+func setTestHome(t *testing.T, tmpHome string) func() {
+	originalHome := os.Getenv("HOME")
+	originalUserProfile := os.Getenv("USERPROFILE")
+
+	os.Setenv("HOME", tmpHome)
+	if runtime.GOOS == "windows" {
+		os.Setenv("USERPROFILE", tmpHome)
+	}
+
+	return func() {
+		os.Setenv("HOME", originalHome)
+		if runtime.GOOS == "windows" {
+			os.Setenv("USERPROFILE", originalUserProfile)
+		}
+	}
+}
 
 func TestMain(m *testing.M) {
 	// Reset viper before each test run
@@ -232,9 +252,8 @@ func TestEnsureDirectories(t *testing.T) {
 
 	// Use temp home for testing
 	tmpHome := t.TempDir()
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", originalHome)
+	cleanup := setTestHome(t, tmpHome)
+	defer cleanup()
 
 	err := EnsureDirectories()
 	if err != nil {
@@ -311,9 +330,8 @@ func TestGetCacheDir(t *testing.T) {
 	resetViper()
 
 	tmpHome := t.TempDir()
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", originalHome)
+	cleanup := setTestHome(t, tmpHome)
+	defer cleanup()
 
 	// Without config, should return default
 	cfg = nil
