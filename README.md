@@ -19,7 +19,7 @@ make build
 ## Quick Start
 
 ```bash
-# Initial setup
+# Initial setup (guided — enter a termiflow key or your own API keys)
 termiflow config init
 
 # Ask a question
@@ -31,6 +31,34 @@ termiflow subscribe "RISC-V in automotive" --weekly
 
 # Check your feed
 termiflow feed
+termiflow feed --refresh        # fetch new items first
+termiflow feed --watch          # stay alive, auto-refresh every 30m
+```
+
+## Modes
+
+### Managed mode (recommended)
+
+Get a `tf_xxx` API key and termiflow handles everything — no Anthropic or Tavily key needed.
+
+```bash
+termiflow config init
+# → "Do you have a termiflow API key?" → enter tf_xxx
+```
+
+Or set the environment variable:
+
+```bash
+export TERMIFLOW_API_KEY=tf_xxx
+```
+
+### Self-hosted mode
+
+Bring your own API keys. termiflow calls Anthropic and Tavily directly.
+
+```bash
+termiflow config init
+# → follow prompts to enter Anthropic, OpenAI, and/or Tavily keys
 ```
 
 ## Features
@@ -63,6 +91,8 @@ termiflow feed                        # All unread items
 termiflow feed --topic silicon-chips  # Filter by topic
 termiflow feed --today                # Today's items
 termiflow feed --refresh              # Fetch new items first
+termiflow feed --watch                # Continuous mode (auto-refresh)
+termiflow feed --watch --interval 5m  # Custom refresh interval
 ```
 
 ### Manage Subscriptions
@@ -94,9 +124,14 @@ termiflow config set providers.openai.api_key YOUR_KEY
 ### Environment Variables
 
 ```bash
-export TERMFLOW_OPENAI_API_KEY=sk-...
-export TERMFLOW_ANTHROPIC_API_KEY=sk-ant-...
-export TERMFLOW_TAVILY_API_KEY=tvly-...
+# Managed mode
+export TERMIFLOW_API_KEY=tf_xxx
+export TERMIFLOW_BASE_URL=https://api.termiflow.com  # optional override
+
+# Self-hosted mode
+export TERMIFLOW_OPENAI_API_KEY=sk-...
+export TERMIFLOW_ANTHROPIC_API_KEY=sk-ant-...
+export TERMIFLOW_TAVILY_API_KEY=tvly-...
 ```
 
 ## Predefined Topics
@@ -110,7 +145,7 @@ export TERMFLOW_TAVILY_API_KEY=tvly-...
 | `systems-programming` | OS development, compilers, low-level |
 | `kubernetes` | K8s, containers, cloud-native |
 
-## LLM Providers
+## LLM Providers (self-hosted mode)
 
 termiflow supports multiple LLM providers:
 
@@ -130,25 +165,31 @@ termiflow ask "question" --provider local
 # Build
 docker build -t termiflow .
 
-# Run
+# Run (managed mode)
 docker run -it --rm \
-  -e TERMFLOW_OPENAI_API_KEY=$OPENAI_API_KEY \
+  -e TERMIFLOW_API_KEY=tf_xxx \
   -v ~/.config/termiflow:/home/termiflow/.config/termiflow \
-  -v ~/.local/share/termiflow:/home/termiflow/.local/share/termiflow \
   termiflow ask "your question"
 ```
 
 ## Development
 
 ```bash
-# Build
+# Build CLI
 make build
 
-# Run in development
-make dev ARGS="ask 'test question'"
+# Build backend API server
+make build-api
+
+# Build with mock providers (no real API calls)
+make build-mock
 
 # Run tests
 make test
+
+# Run with mock mode (zero network, no API keys needed)
+make run-mock ARGS="feed --refresh"
+TERMIFLOW_MOCK=true go run -tags mock ./cmd/termiflow ask "rust async"
 
 # Build for all platforms
 make release
