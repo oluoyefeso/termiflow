@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "title": "Mock: Rust async ecosystem 2025",
+      "url": "https://example.com/mock-1",
+      "content": "Mock article content about Rust async programming and the tokio runtime ecosystem.",
+      "snippet": "Mock snippet about Rust async.",
+      "published_date": "2026-03-25T00:00:00Z",
+      "source": "mock-source"
+    },
+    {
+      "title": "Mock: WebAssembly in 2025",
+      "url": "https://example.com/mock-2",
+      "content": "Mock article about WebAssembly advancements and WASI.",
+      "snippet": "Mock snippet about WebAssembly.",
+      "published_date": "2026-03-24T00:00:00Z",
+      "source": "mock-source-2"
+    }
+  ]
+}
