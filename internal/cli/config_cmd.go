@@ -145,6 +145,49 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Check for managed API key first
+	fmt.Print("Do you have a termiflow API key? (y/N): ")
+	managedAnswer, _ := reader.ReadString('\n')
+	managedAnswer = strings.TrimSpace(strings.ToLower(managedAnswer))
+
+	if managedAnswer == "y" || managedAnswer == "yes" {
+		// Check if key already exists
+		existingKey := config.GetString("providers.managed.api_key")
+		if existingKey != "" {
+			fmt.Print("Update existing managed key? (y/N): ")
+			updateAnswer, _ := reader.ReadString('\n')
+			updateAnswer = strings.TrimSpace(strings.ToLower(updateAnswer))
+			if updateAnswer != "y" && updateAnswer != "yes" {
+				fmt.Print(ui.Success("Keeping existing managed key"))
+				return nil
+			}
+		}
+
+		fmt.Print("Enter your termiflow API key: ")
+		managedKey, _ := reader.ReadString('\n')
+		managedKey = strings.TrimSpace(managedKey)
+		if managedKey != "" {
+			config.Set("providers.managed.api_key", managedKey)
+			config.Set("general.default_provider", "managed")
+			fmt.Print(ui.Success("Managed mode configured. No other keys needed."))
+
+			configPath := config.GetConfigPath()
+			configDir := filepath.Dir(configPath)
+			if err := os.MkdirAll(configDir, 0755); err != nil {
+				return fmt.Errorf("failed to create config directory: %w", err)
+			}
+			if err := writeManagedConfig(configPath, managedKey); err != nil {
+				return fmt.Errorf("failed to save config: %w", err)
+			}
+			return nil
+		}
+	}
+
+	// Fall through to self-hosted setup
+	fmt.Println()
+	fmt.Println("Setting up self-hosted configuration...")
+	fmt.Println()
+
 	// OpenAI API key
 	fmt.Print("Enter your OpenAI API key (or press Enter to skip): ")
 	openaiKey, _ := reader.ReadString('\n')
@@ -194,6 +237,27 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	fmt.Print(ui.Success(fmt.Sprintf("Configuration saved to %s", configPath)))
 
 	return nil
+}
+
+func writeManagedConfig(path, managedKey string) error {
+	content := fmt.Sprintf(`# Termflow Configuration — Managed Mode
+
+[general]
+default_provider = "managed"
+output_style = "pretty"
+cache_dir = "~/.cache/termiflow"
+feed_limit = 20
+
+[providers.managed]
+api_key = "%s"
+base_url = "https://api.termiflow.com"
+
+[schedule]
+default_frequency = "daily"
+daily_time = "08:00"
+weekly_day = 1
+`, managedKey)
+	return os.WriteFile(path, []byte(content), 0600)
 }
 
 func writeDefaultConfig(path, openaiKey, anthropicKey, tavilyKey string) error {
