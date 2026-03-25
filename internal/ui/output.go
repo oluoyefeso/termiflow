@@ -9,51 +9,60 @@ import (
 	"github.com/muesli/termenv"
 )
 
-const lineWidth = 65
+const lineWidth = 69
+
+// bar returns a horizontal rule using the given character
+func bar(ch string, width int) string {
+	return strings.Repeat(ch, width)
+}
 
 func Header(title string) string {
-	return HeaderBoxStyle.Render(fmt.Sprintf("  %s", title))
+	top := MutedStyle.Render(bar("═", lineWidth))
+	label := AccentStyle.Render("  " + strings.ToUpper(title))
+	bot := MutedStyle.Render(bar("═", lineWidth))
+	return fmt.Sprintf("%s\n%s\n%s", top, label, bot)
 }
 
 func HeaderWithDate(title string) string {
-	date := time.Now().Format("Jan 2, 2006 · 15:04")
-	padding := lineWidth - len(title) - len(date) - 2
+	date := time.Now().Format("02 Jan 06 · 15:04")
+	label := strings.ToUpper(title)
+	padding := lineWidth - len(label) - len(date) - 4
 	if padding < 1 {
 		padding = 1
 	}
-	content := fmt.Sprintf("  %s%s%s", title, strings.Repeat(" ", padding), MutedStyle.Render(date))
-	return HeaderBoxStyle.Render(content)
+	top := MutedStyle.Render(bar("═", lineWidth))
+	content := fmt.Sprintf("  %s%s%s",
+		AccentStyle.Render(label),
+		strings.Repeat(" ", padding),
+		MutedStyle.Render(date),
+	)
+	bot := MutedStyle.Render(bar("═", lineWidth))
+	return fmt.Sprintf("%s\n%s\n%s", top, content, bot)
 }
 
 func Section(title string, count int, countLabel string) string {
-	var countStr string
+	label := strings.ToUpper(title)
+	countStr := ""
 	if count > 0 {
-		countStr = fmt.Sprintf("%d %s", count, countLabel)
+		countStr = fmt.Sprintf("%d %s", count, strings.ToUpper(countLabel))
 	}
-
-	padding := lineWidth - len(title) - len(countStr) - 4
-	if padding < 1 {
-		padding = 1
+	dashWidth := lineWidth - len(label) - len(countStr) - 3
+	if dashWidth < 1 {
+		dashWidth = 1
 	}
-
-	bullet := SuccessStyle.Render("●")
-	line := strings.Repeat("─", lineWidth)
-
-	return fmt.Sprintf("\n %s %s%s%s\n %s\n",
-		bullet,
-		BoldStyle.Render(title),
-		strings.Repeat(" ", padding),
-		MutedStyle.Render(countStr),
-		MutedStyle.Render(line),
+	return fmt.Sprintf("\n %s %s %s\n",
+		TitleStyle.Render("▸"),
+		AccentStyle.Render(label),
+		MutedStyle.Render(bar("─", dashWidth)+" "+countStr),
 	)
 }
 
 func Divider() string {
-	return fmt.Sprintf("\n   %s\n", MutedStyle.Render(strings.Repeat("─ ", 33)))
+	return fmt.Sprintf("   %s\n", MutedStyle.Render(bar("·", lineWidth-3)))
 }
 
 func SmallDivider() string {
-	return MutedStyle.Render(strings.Repeat("─", lineWidth))
+	return MutedStyle.Render(bar("─", lineWidth))
 }
 
 func Success(message string) string {
@@ -81,7 +90,7 @@ func Info(label, value string) string {
 }
 
 func Bullet(text string) string {
-	return fmt.Sprintf(" → %s\n", text)
+	return fmt.Sprintf(" %s %s\n", MutedStyle.Render("›"), text)
 }
 
 func Indent(text string, spaces int) string {
@@ -123,48 +132,45 @@ func Tags(tags []string) string {
 	if len(tags) == 0 {
 		return ""
 	}
-
 	var parts []string
 	for _, tag := range tags {
-		parts = append(parts, TagStyle.Render("#"+tag))
+		parts = append(parts, TagStyle.Render("["+tag+"]"))
 	}
-	return strings.Join(parts, "  ")
+	return strings.Join(parts, " ")
 }
 
 func FormatFeedItem(title, source, timeAgo, summary string, tags []string) string {
 	var b strings.Builder
 
-	// Title
-	b.WriteString(fmt.Sprintf("   %s\n", BoldStyle.Render(title)))
+	// Title — amber, bold, no indent bloat
+	b.WriteString(fmt.Sprintf("  %s\n", AccentStyle.Render(title)))
 
-	// Source and time
-	b.WriteString(fmt.Sprintf("   %s · %s\n",
+	// Source | time on same line, compact
+	b.WriteString(fmt.Sprintf("  %s  %s\n",
 		MutedStyle.Render(source),
 		MutedStyle.Render(timeAgo),
 	))
 
-	// Summary
+	// Summary — slightly indented, wrapped
 	if summary != "" {
-		b.WriteString("   \n")
-		wrapped := WrapText(summary, 60)
+		wrapped := WrapText(summary, 65)
 		for _, line := range strings.Split(wrapped, "\n") {
-			b.WriteString(fmt.Sprintf("   %s\n", line))
+			b.WriteString(fmt.Sprintf("  %s\n", MutedStyle.Render(line)))
 		}
 	}
 
-	// Tags
+	// Tags — inline, compact
 	if len(tags) > 0 {
-		b.WriteString("   \n")
-		b.WriteString(fmt.Sprintf("   %s\n", Tags(tags)))
+		b.WriteString(fmt.Sprintf("  %s\n", Tags(tags)))
 	}
 
 	return b.String()
 }
 
 func SubscriptionRow(topic, frequency string, total, unread int, isCategory bool) string {
-	bullet := "○"
+	bullet := MutedStyle.Render("○")
 	if isCategory {
-		bullet = "●"
+		bullet = TitleStyle.Render("●")
 	}
 
 	stats := ""
@@ -175,8 +181,8 @@ func SubscriptionRow(topic, frequency string, total, unread int, isCategory bool
 		}
 	}
 
-	return fmt.Sprintf("   %s %-24s %-10s %s\n",
-		SuccessStyle.Render(bullet),
+	return fmt.Sprintf("  %s %-26s %-10s %s\n",
+		bullet,
 		topic,
 		MutedStyle.Render(frequency),
 		MutedStyle.Render(stats),
@@ -184,7 +190,7 @@ func SubscriptionRow(topic, frequency string, total, unread int, isCategory bool
 }
 
 func CategoryRow(name, displayName string) string {
-	return fmt.Sprintf("   %s %-24s %s\n",
+	return fmt.Sprintf("  %s %-26s %s\n",
 		MutedStyle.Render("○"),
 		name,
 		MutedStyle.Render(displayName),
@@ -192,17 +198,16 @@ func CategoryRow(name, displayName string) string {
 }
 
 func Tip(text string) string {
-	return fmt.Sprintf("\n %s %s\n",
-		MutedStyle.Render("Tip:"),
+	return fmt.Sprintf("\n  %s %s\n",
+		MutedStyle.Render("tip:"),
 		text,
 	)
 }
 
 func Footer(items, topics int, lastUpdated string) string {
-	return fmt.Sprintf("\n %s\n %s\n",
-		SmallDivider(),
-		MutedStyle.Render(fmt.Sprintf(" %d items · %d topics · Last updated %s", items, topics, lastUpdated)),
-	)
+	line := SmallDivider()
+	stats := MutedStyle.Render(fmt.Sprintf("  %d items  %d topics  updated %s", items, topics, lastUpdated))
+	return fmt.Sprintf("\n%s\n%s\n", line, stats)
 }
 
 func NoColor(enable bool) {
