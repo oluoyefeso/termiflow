@@ -53,11 +53,7 @@ type managedSearchResponse struct {
 }
 
 func (p *ManagedSearchProvider) Search(ctx context.Context, req SearchRequest) ([]SearchResult, error) {
-	body := managedSearchRequest{
-		Query:      req.Query,
-		MaxResults: req.MaxResults,
-		TimeRange:  req.TimeRange,
-	}
+	body := managedSearchRequest(req)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
