@@ -14,6 +14,8 @@ const (
 	DefaultLocalBaseURL   = "http://localhost:11434/v1"
 	DefaultLocalModel     = "llama3"
 
+	DefaultManagedBaseURL = "https://api.termiflow.com"
+
 	DefaultScraperUserAgent = "termiflow/1.0"
 	DefaultScraperTimeout   = 30
 	DefaultRespectRobots    = true
