@@ -27,6 +27,12 @@ type ProvidersConfig struct {
 	OpenAI    OpenAIConfig    `mapstructure:"openai"`
 	Anthropic AnthropicConfig `mapstructure:"anthropic"`
 	Local     LocalConfig     `mapstructure:"local"`
+	Managed   ManagedConfig   `mapstructure:"managed"`
+}
+
+type ManagedConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
 }
 
 type OpenAIConfig struct {
@@ -128,6 +134,9 @@ func setDefaults() {
 	viper.SetDefault("providers.anthropic.model", DefaultAnthropicModel)
 	viper.SetDefault("providers.local.base_url", DefaultLocalBaseURL)
 	viper.SetDefault("providers.local.model", DefaultLocalModel)
+	viper.SetDefault("providers.managed.base_url", DefaultManagedBaseURL)
+	_ = viper.BindEnv("providers.managed.api_key", "TERMIFLOW_API_KEY")
+	_ = viper.BindEnv("providers.managed.base_url", "TERMIFLOW_BASE_URL")
 
 	viper.SetDefault("search.scraper.user_agent", DefaultScraperUserAgent)
 	viper.SetDefault("search.scraper.timeout", DefaultScraperTimeout)
@@ -193,4 +202,9 @@ func Set(key string, value interface{}) {
 
 func GetString(key string) string {
 	return viper.GetString(key)
+}
+
+// IsManagedMode returns true when a termiflow managed API key is configured.
+func IsManagedMode() bool {
+	return viper.GetString("providers.managed.api_key") != ""
 }
