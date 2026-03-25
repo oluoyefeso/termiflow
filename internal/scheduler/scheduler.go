@@ -61,17 +61,17 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 		return nil, err
 	}
 
-	// Set subscription ID and save to database
+	// Set subscription ID and save to database — only keep newly inserted items
+	var newItems []*models.FeedItem
 	for _, item := range items {
 		item.SubscriptionID = sub.ID
 
-		// Check if item already exists
 		exists, _ := db.ItemExistsByURL(item.SourceURL)
 		if !exists {
 			if err := db.CreateFeedItem(item); err != nil {
-				// Log but continue
 				continue
 			}
+			newItems = append(newItems, item)
 		}
 	}
 
@@ -80,7 +80,7 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 		return nil, err
 	}
 
-	return items, nil
+	return newItems, nil
 }
 
 // RefreshAllSubscriptions refreshes all active subscriptions
