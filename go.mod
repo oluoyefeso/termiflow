@@ -3,6 +3,7 @@ module github.com/oluoyefeso/termiflow
 go 1.22
 
 require (
+	github.com/oluoyefeso/termiflow-engine v0.0.0
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/briandowns/spinner v1.23.0
 	github.com/charmbracelet/lipgloss v0.9.1
@@ -65,3 +66,5 @@ require (
 	modernc.org/strutil v1.1.3 // indirect
 	modernc.org/token v1.0.1 // indirect
 )
+
+replace github.com/oluoyefeso/termiflow-engine => ../termiflow-engine

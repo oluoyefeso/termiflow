@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	engine "github.com/oluoyefeso/termiflow-engine"
 	"github.com/oluoyefeso/termiflow/internal/db"
-	"github.com/oluoyefeso/termiflow/internal/intelligence"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/pkg/models"
@@ -15,7 +15,7 @@ type Scheduler struct {
 	llmProvider    llm.Provider
 	searchProvider search.Provider
 	rssProvider    *search.RSSProvider
-	curator        *intelligence.Curator
+	curator        *engine.Curator
 }
 
 func New(llmProvider llm.Provider, searchProvider search.Provider) *Scheduler {
@@ -23,7 +23,7 @@ func New(llmProvider llm.Provider, searchProvider search.Provider) *Scheduler {
 		llmProvider:    llmProvider,
 		searchProvider: searchProvider,
 		rssProvider:    search.NewRSSProvider(),
-		curator:        intelligence.NewCurator(llmProvider),
+		curator:        engine.NewCurator(llm.AsEngine(llmProvider)),
 	}
 }
 
@@ -55,13 +55,16 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 	// Deduplicate by URL
 	allResults = deduplicateByURL(allResults)
 
-	// Curate results
-	items, err := s.curator.CurateResults(ctx, sub.Topic, allResults)
+	// Convert CLI search results to engine search results and curate
+	engineResults := search.ToEngineResults(allResults)
+	curatedItems, err := s.curator.Curate(ctx, sub.Topic, engineResults)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set subscription ID and save to database — only keep newly inserted items
+	// Convert engine FeedItems to CLI FeedItems and save to database
+	items := db.FromEngineFeedItems(curatedItems)
+
 	var newItems []*models.FeedItem
 	for _, item := range items {
 		item.SubscriptionID = sub.ID
