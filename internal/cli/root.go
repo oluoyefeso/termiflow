@@ -90,6 +90,8 @@ func init() {
 	rootCmd.AddCommand(unsubscribeCmd)
 	rootCmd.AddCommand(feedCmd)
 	rootCmd.AddCommand(topicsCmd)
+	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(upgradeCmd)
 }
 
 func getProvider() string {
