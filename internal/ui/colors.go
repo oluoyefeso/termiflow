@@ -3,15 +3,16 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Primary colors
-	Primary      = lipgloss.Color("39")  // Blue
-	Secondary    = lipgloss.Color("245") // Gray
+	// Bloomberg terminal palette: amber on dark, dense and functional
+	Primary      = lipgloss.Color("214") // Amber
+	Secondary    = lipgloss.Color("244") // Light gray
 	SuccessColor = lipgloss.Color("82")  // Green
-	WarningColor = lipgloss.Color("214") // Orange
+	WarningColor = lipgloss.Color("208") // Orange
 	ErrorColor   = lipgloss.Color("196") // Red
-	Muted        = lipgloss.Color("241") // Dark gray
+	Muted        = lipgloss.Color("240") // Dark gray
+	Accent       = lipgloss.Color("220") // Bright amber (headlines)
 
-	// Styles
+	// Text styles
 	TitleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(Primary)
@@ -34,19 +35,22 @@ var (
 	BoldStyle = lipgloss.NewStyle().
 			Bold(true)
 
-	TagStyle = lipgloss.NewStyle().
-			Foreground(Primary).
-			Background(lipgloss.Color("236")).
-			Padding(0, 1)
+	AccentStyle = lipgloss.NewStyle().
+			Foreground(Accent).
+			Bold(true)
 
+	// Tags: compact bracket style
+	TagStyle = lipgloss.NewStyle().
+			Foreground(Primary)
+
+	// Header: plain border (Bloomberg uses flat lines, not rounded boxes)
 	BoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(Secondary).
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(Muted).
 			Padding(0, 1)
 
 	HeaderBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(Primary).
-			Padding(0, 1).
-			Width(67)
+			Border(lipgloss.NormalBorder(), false, false, false, false).
+			Padding(0, 0).
+			Width(69)
 )

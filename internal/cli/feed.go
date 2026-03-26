@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -24,6 +26,8 @@ var feedRefresh bool
 var feedAll bool
 var feedMarkRead bool
 var feedCleanup bool
+var feedWatch bool
+var feedInterval time.Duration
 
 var feedCmd = &cobra.Command{
 	Use:   "feed",
@@ -35,7 +39,8 @@ Examples:
   termiflow feed --topic silicon-chips     # Filter by topic
   termiflow feed --today                   # Today's items only
   termiflow feed --limit 10                # Limit number of items
-  termiflow feed --refresh                 # Fetch new items first`,
+  termiflow feed --refresh                 # Fetch new items first
+  termiflow feed --watch                   # Continuously refresh feed`,
 	RunE: runFeed,
 }
 
@@ -48,6 +53,8 @@ func init() {
 	feedCmd.Flags().BoolVar(&feedAll, "all", false, "include already-read items")
 	feedCmd.Flags().BoolVar(&feedMarkRead, "mark-read", true, "mark displayed items as read")
 	feedCmd.Flags().BoolVar(&feedCleanup, "cleanup", false, "remove items older than 30 days")
+	feedCmd.Flags().BoolVar(&feedWatch, "watch", false, "run continuously, auto-refreshing on interval")
+	feedCmd.Flags().DurationVar(&feedInterval, "interval", 30*time.Minute, "refresh interval for --watch mode")
 }
 
 func runFeed(cmd *cobra.Command, args []string) error {
@@ -58,24 +65,81 @@ func runFeed(cmd *cobra.Command, args []string) error {
 		return cleanupOldItems()
 	}
 
+	// Watch mode: loop with auto-refresh until Ctrl+C
+	if feedWatch {
+		return runFeedWatch(cmd, cfg)
+	}
+
 	// Handle refresh
 	if feedRefresh {
 		if err := refreshFeeds(cfg, feedTopic); err != nil {
 			fmt.Print(ui.Error(fmt.Sprintf("Refresh failed: %v", err)))
-			fmt.Println()
 			// Continue to show existing items
 		}
 	}
 
-	// Build filter
+	// Check for subscriptions before rendering
+	subs, err := db.GetActiveSubscriptions()
+	if err != nil {
+		return err
+	}
+	if len(subs) == 0 {
+		fmt.Println()
+		fmt.Print(ui.Warning("No active subscriptions"))
+		fmt.Println()
+		fmt.Printf("  Get started with:\n")
+		fmt.Printf("    %s\n", ui.TitleStyle.Render("termiflow subscribe silicon-chips"))
+		fmt.Printf("    %s\n", ui.TitleStyle.Render("termiflow subscribe \"your custom topic\""))
+		fmt.Println()
+		fmt.Printf("  See available topics with %s\n", ui.TitleStyle.Render("termiflow topics --available"))
+		fmt.Println()
+		return nil
+	}
+
+	return displayFeedItems(cmd, cfg)
+}
+
+func runFeedWatch(cmd *cobra.Command, cfg *config.Config) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
+	for {
+		// Clear screen
+		fmt.Print("\033[H\033[2J")
+
+		if err := refreshFeeds(cfg, feedTopic); err != nil {
+			fmt.Print(ui.Error(fmt.Sprintf("Refresh failed: %v", err)))
+		}
+		if err := displayFeedItems(cmd, cfg); err != nil {
+			fmt.Print(ui.Error(fmt.Sprintf("Display failed: %v", err)))
+		}
+
+		fmt.Printf("\n%s\n", ui.MutedStyle.Render(fmt.Sprintf("  watching · next refresh in %s · ctrl+c to stop", feedInterval)))
+
+		select {
+		case <-ctx.Done():
+			fmt.Println()
+			return nil
+		case <-time.After(feedInterval):
+		}
+	}
+}
+
+// displayFeedItems renders items from the DB without triggering a refresh.
+func displayFeedItems(cmd *cobra.Command, cfg *config.Config) error {
 	filter := db.FeedItemFilter{
 		Unread: !feedAll,
 	}
-
 	if feedTopic != "" {
 		filter.Topic = feedTopic
 	}
-
 	if feedToday {
 		since := time.Now().Truncate(24 * time.Hour)
 		filter.Since = &since
@@ -83,54 +147,32 @@ func runFeed(cmd *cobra.Command, args []string) error {
 		since := time.Now().AddDate(0, 0, -7)
 		filter.Since = &since
 	}
-
 	if feedLimit > 0 {
 		filter.Limit = feedLimit
 	} else {
 		filter.Limit = cfg.General.FeedLimit
 	}
 
-	// Get subscriptions
 	subs, err := db.GetActiveSubscriptions()
 	if err != nil {
 		return err
 	}
 
-	if len(subs) == 0 {
-		fmt.Println()
-		fmt.Print(ui.Warning("No active subscriptions"))
-		fmt.Println()
-		fmt.Printf("   Get started with:\n")
-		fmt.Printf("     %s\n", ui.TitleStyle.Render("termiflow subscribe silicon-chips"))
-		fmt.Printf("     %s\n", ui.TitleStyle.Render("termiflow subscribe \"your custom topic\""))
-		fmt.Println()
-		fmt.Printf("   See available topics with %s\n", ui.TitleStyle.Render("termiflow topics --available"))
-		fmt.Println()
-		return nil
-	}
-
-	// Get feed items
 	items, err := db.GetFeedItems(filter)
 	if err != nil {
 		return err
 	}
 
-	// Print header
 	fmt.Println(ui.HeaderWithDate("termiflow feed"))
 
 	if len(items) == 0 {
 		fmt.Println()
-		fmt.Print(ui.MutedStyle.Render("   No new items in your feed.\n"))
-		fmt.Println()
-		fmt.Printf("   Run %s to fetch updates.\n", ui.TitleStyle.Render("termiflow feed --refresh"))
+		fmt.Print(ui.MutedStyle.Render("  no new items\n"))
 		fmt.Println()
 		return nil
 	}
 
-	// Group items by subscription
 	groupedItems := groupBySubscription(items, subs)
-
-	// Track items to mark as read
 	var itemIDs []int64
 	totalItems := 0
 	topicCount := 0
@@ -140,10 +182,8 @@ func runFeed(cmd *cobra.Command, args []string) error {
 		if !ok || len(subItems) == 0 {
 			continue
 		}
-
 		topicCount++
 		fmt.Print(ui.Section(sub.Topic, len(subItems), "new items"))
-
 		for i, item := range subItems {
 			fmt.Println(ui.FormatFeedItem(
 				item.Title,
@@ -152,27 +192,19 @@ func runFeed(cmd *cobra.Command, args []string) error {
 				item.Summary,
 				item.Tags,
 			))
-
 			if i < len(subItems)-1 {
 				fmt.Print(ui.Divider())
 			}
-
 			itemIDs = append(itemIDs, item.ID)
 			totalItems++
 		}
 	}
 
-	// Print footer
 	fmt.Print(ui.Footer(totalItems, topicCount, "just now"))
 
-	// Mark items as read
 	if feedMarkRead && len(itemIDs) > 0 {
-		if err := db.MarkItemsRead(itemIDs); err != nil {
-			// Log error but don't fail
-			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to mark items as read: %v\n", err)
-		}
+		_ = db.MarkItemsRead(itemIDs)
 	}
-
 	return nil
 }
 
@@ -235,10 +267,10 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 		return fmt.Errorf("LLM provider '%s' not configured - run 'termiflow config init'", providerName)
 	}
 
-	// Initialize search provider (Tavily)
-	var searchProvider search.Provider
-	if cfg.Search.Tavily.APIKey != "" {
-		searchProvider = search.NewTavilyProvider(cfg.Search.Tavily.APIKey)
+	// Initialize search provider
+	searchProvider, err := search.GetSearchProvider(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize search provider: %w", err)
 	}
 
 	// Create scheduler
