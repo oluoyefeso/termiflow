@@ -1,0 +1,7 @@
+{
+  "id": "msg_mock_001",
+  "type": "message",
+  "content": [{"type": "text", "text": "0.85"}],
+  "stop_reason": "end_turn",
+  "usage": {"input_tokens": 100, "output_tokens": 10}
+}

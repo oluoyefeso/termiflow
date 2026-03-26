@@ -123,13 +123,14 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 func fetchSources(query string, limit int) ([]search.SearchResult, error) {
 	cfg := config.Get()
-
-	if cfg.Search.Tavily.APIKey == "" {
-		return nil, fmt.Errorf("Tavily API key not configured")
+	provider, err := search.GetSearchProvider(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize search provider: %w", err)
 	}
-
-	tavily := search.NewTavilyProvider(cfg.Search.Tavily.APIKey)
-	return tavily.Search(context.Background(), search.SearchRequest{
+	if !provider.Available() {
+		return nil, fmt.Errorf("no search provider configured — run 'termiflow config init'")
+	}
+	return provider.Search(context.Background(), search.SearchRequest{
 		Query:      query,
 		MaxResults: limit,
 		TimeRange:  "week",
