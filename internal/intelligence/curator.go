@@ -3,11 +3,14 @@ package intelligence
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/pkg/models"
 )
+
+const maxConcurrentArticles = 5
 
 type Curator struct {
 	llmProvider llm.Provider
@@ -19,49 +22,78 @@ func NewCurator(provider llm.Provider) *Curator {
 	}
 }
 
-// CurateResults processes search results and returns curated feed items
+// CurateResults processes search results concurrently and returns curated feed items.
+// Uses bounded goroutines (max 5) to parallelize LLM calls per article.
 func (c *Curator) CurateResults(ctx context.Context, topic string, results []search.SearchResult) ([]*models.FeedItem, error) {
-	var items []*models.FeedItem
+	type indexedItem struct {
+		index int
+		item  *models.FeedItem
+	}
 
-	for _, result := range results {
-		item := &models.FeedItem{
-			Title:       result.Title,
-			SourceName:  result.Source,
-			SourceURL:   result.URL,
-			Content:     truncateContent(result.Content, 2000),
-			PublishedAt: &result.PublishedAt,
-		}
+	var (
+		mu      sync.Mutex
+		items   = make([]*models.FeedItem, len(results))
+		wg      sync.WaitGroup
+		sem     = make(chan struct{}, maxConcurrentArticles)
+	)
 
-		// Score relevance
-		score, err := ScoreRelevance(ctx, c.llmProvider, topic, result.Title, result.Snippet)
-		if err != nil {
-			score = 0.5 // Default score on error
-		}
-		item.RelevanceScore = score
+	for i, result := range results {
+		wg.Add(1)
+		sem <- struct{}{} // acquire semaphore
 
-		// Only process items above threshold
-		if score > 0.5 {
-			// Generate summary
-			summary, err := Summarize(ctx, c.llmProvider, topic, result.Title, result.Content)
-			if err == nil {
-				item.Summary = summary
+		go func(idx int, r search.SearchResult) {
+			defer wg.Done()
+			defer func() { <-sem }() // release semaphore
+
+			item := &models.FeedItem{
+				Title:       r.Title,
+				SourceName:  r.Source,
+				SourceURL:   r.URL,
+				Content:     truncateContent(r.Content, 2000),
+				PublishedAt: &r.PublishedAt,
 			}
 
-			// Extract tags
-			tags, err := ExtractTags(ctx, c.llmProvider, result.Title, result.Content)
-			if err == nil {
-				item.Tags = tags
+			// Score relevance
+			score, err := ScoreRelevance(ctx, c.llmProvider, topic, r.Title, r.Snippet)
+			if err != nil {
+				score = 0.5
 			}
-		}
+			item.RelevanceScore = score
 
-		items = append(items, item)
+			// Only process items above threshold
+			if score > 0.5 {
+				summary, err := Summarize(ctx, c.llmProvider, topic, r.Title, r.Content)
+				if err == nil {
+					item.Summary = summary
+				}
+
+				tags, err := ExtractTags(ctx, c.llmProvider, r.Title, r.Content)
+				if err == nil {
+					item.Tags = tags
+				}
+			}
+
+			mu.Lock()
+			items[idx] = item
+			mu.Unlock()
+		}(i, result)
+	}
+
+	wg.Wait()
+
+	// Collect non-nil items (all should be non-nil, but be safe)
+	var collected []*models.FeedItem
+	for _, item := range items {
+		if item != nil {
+			collected = append(collected, item)
+		}
 	}
 
 	// Filter and sort by relevance
-	items = filterByRelevance(items, 0.5)
-	sortByRelevanceAndRecency(items)
+	collected = filterByRelevance(collected, 0.5)
+	sortByRelevanceAndRecency(collected)
 
-	return items, nil
+	return collected, nil
 }
 
 func truncateContent(content string, maxLen int) string {

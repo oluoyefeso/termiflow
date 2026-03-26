@@ -47,6 +47,30 @@ var DefaultCategories = []Category{
 		Description: "K8s, containers, cloud-native infrastructure",
 		Keywords:    []string{"kubernetes", "k8s", "containers", "cloud native", "CNCF"},
 	},
+	{
+		Name:        "ai-safety",
+		DisplayName: "AI Safety & Alignment",
+		Description: "AI alignment research, safety engineering, responsible AI",
+		Keywords:    []string{"AI safety", "AI alignment", "RLHF", "interpretability", "responsible AI", "AI governance"},
+	},
+	{
+		Name:        "zig-lang",
+		DisplayName: "Zig Programming",
+		Description: "Zig language updates, toolchain, ecosystem news",
+		Keywords:    []string{"zig programming", "zig lang", "zig compiler", "zig build system", "ziglang"},
+	},
+	{
+		Name:        "webassembly",
+		DisplayName: "WebAssembly",
+		Description: "Wasm runtimes, toolchains, component model, WASI",
+		Keywords:    []string{"WebAssembly", "WASM", "WASI", "wasm component model", "wasm runtime", "Wasmtime"},
+	},
+	{
+		Name:        "open-hardware",
+		DisplayName: "Open Source Hardware",
+		Description: "RISC-V, open silicon, open-source hardware projects",
+		Keywords:    []string{"RISC-V", "open source hardware", "open silicon", "FPGA", "OpenTitan", "libre silicon"},
+	},
 }
 
 func GetCategoryByName(name string) *Category {

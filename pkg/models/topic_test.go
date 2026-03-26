@@ -6,7 +6,7 @@ import (
 
 func TestDefaultCategories(t *testing.T) {
 	// Verify we have the expected number of categories
-	expectedCount := 6
+	expectedCount := 10
 	if len(DefaultCategories) != expectedCount {
 		t.Errorf("DefaultCategories count = %d, want %d", len(DefaultCategories), expectedCount)
 	}
@@ -19,6 +19,10 @@ func TestDefaultCategories(t *testing.T) {
 		"webgpu",
 		"systems-programming",
 		"kubernetes",
+		"ai-safety",
+		"zig-lang",
+		"webassembly",
+		"open-hardware",
 	}
 
 	for _, name := range expectedNames {
