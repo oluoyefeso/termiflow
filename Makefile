@@ -39,9 +39,6 @@ dev:
 db-reset:
 	rm -f ~/.local/share/termiflow/termiflow.db
 
-build-api:
-	go build $(LDFLAGS) -o bin/termiflow-api ./cmd/termiflow-api
-
 build-mock:
 	go build -tags mock $(LDFLAGS) -o bin/termiflow-mock ./cmd/termiflow
 

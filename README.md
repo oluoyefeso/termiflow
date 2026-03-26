@@ -1,8 +1,19 @@
-# termiflow
+# termiflow (self-hosted)
 
-Terminal-native AI intelligence tool that lets developers ask questions and subscribe to curated topic updates, all from the command line.
+Terminal-native AI intelligence tool for developers. Subscribe to curated topic feeds and ask questions — all from the command line.
 
 **Information comes to you where you already are — the terminal. No browser switching, no context loss, no noise. Just signal.**
+
+> This is the **self-hosted edition**. Bring your own Anthropic and Tavily API keys.
+> Want a managed key with no setup? Use [termiflow-cli](https://github.com/oluoyefeso/termiflow-cli) instead.
+
+## Repos
+
+| Repo | Description | Visibility |
+|------|-------------|------------|
+| **[termiflow](https://github.com/oluoyefeso/termiflow)** (this) | Self-hosted CLI, bring your own API keys | Public |
+| **[termiflow-cli](https://github.com/oluoyefeso/termiflow-cli)** | Managed CLI, `tf_xxx` key from termiflow.com | Public |
+| **termiflow-api** | Backend proxy (key management + LLM/search) | Private |
 
 ## Quick Install
 
@@ -19,8 +30,8 @@ make build
 ## Quick Start
 
 ```bash
-# Initial setup (guided — enter a termiflow key or your own API keys)
-termiflow config init
+# Initial setup — enter your Anthropic, OpenAI, and/or Tavily keys
+termiflow config
 
 # Ask a question
 termiflow ask "what are the latest advancements in 3nm chip fabrication?"
@@ -33,32 +44,6 @@ termiflow subscribe "RISC-V in automotive" --weekly
 termiflow feed
 termiflow feed --refresh        # fetch new items first
 termiflow feed --watch          # stay alive, auto-refresh every 30m
-```
-
-## Modes
-
-### Managed mode (recommended)
-
-Get a `tf_xxx` API key and termiflow handles everything — no Anthropic or Tavily key needed.
-
-```bash
-termiflow config init
-# → "Do you have a termiflow API key?" → enter tf_xxx
-```
-
-Or set the environment variable:
-
-```bash
-export TERMIFLOW_API_KEY=tf_xxx
-```
-
-### Self-hosted mode
-
-Bring your own API keys. termiflow calls Anthropic and Tavily directly.
-
-```bash
-termiflow config init
-# → follow prompts to enter Anthropic, OpenAI, and/or Tavily keys
 ```
 
 ## Features
@@ -109,13 +94,7 @@ Config file location: `~/.config/termiflow/config.toml`
 
 ```bash
 # Interactive setup
-termiflow config init
-
-# View current config
 termiflow config
-
-# Edit config
-termiflow config --edit
 
 # Set individual values
 termiflow config set providers.openai.api_key YOUR_KEY
@@ -124,15 +103,18 @@ termiflow config set providers.openai.api_key YOUR_KEY
 ### Environment Variables
 
 ```bash
-# Managed mode
-export TERMIFLOW_API_KEY=tf_xxx
-export TERMIFLOW_BASE_URL=https://api.termiflow.com  # optional override
-
-# Self-hosted mode
 export TERMIFLOW_OPENAI_API_KEY=sk-...
 export TERMIFLOW_ANTHROPIC_API_KEY=sk-ant-...
 export TERMIFLOW_TAVILY_API_KEY=tvly-...
 ```
+
+## LLM Providers
+
+| Provider | Flag | Notes |
+|----------|------|-------|
+| OpenAI (default) | `--provider openai` | GPT-4o |
+| Anthropic | `--provider anthropic` | Claude models |
+| Local | `--provider local` | Ollama, llama.cpp, LM Studio |
 
 ## Predefined Topics
 
@@ -145,41 +127,11 @@ export TERMIFLOW_TAVILY_API_KEY=tvly-...
 | `systems-programming` | OS development, compilers, low-level |
 | `kubernetes` | K8s, containers, cloud-native |
 
-## LLM Providers (self-hosted mode)
-
-termiflow supports multiple LLM providers:
-
-- **OpenAI** (default) - GPT-4o and other models
-- **Anthropic** - Claude models
-- **Local** - Any OpenAI-compatible server (Ollama, llama.cpp, LM Studio)
-
-```bash
-# Use specific provider
-termiflow ask "question" --provider anthropic
-termiflow ask "question" --provider local
-```
-
-## Docker
-
-```bash
-# Build
-docker build -t termiflow .
-
-# Run (managed mode)
-docker run -it --rm \
-  -e TERMIFLOW_API_KEY=tf_xxx \
-  -v ~/.config/termiflow:/home/termiflow/.config/termiflow \
-  termiflow ask "your question"
-```
-
 ## Development
 
 ```bash
 # Build CLI
 make build
-
-# Build backend API server
-make build-api
 
 # Build with mock providers (no real API calls)
 make build-mock
@@ -190,9 +142,17 @@ make test
 # Run with mock mode (zero network, no API keys needed)
 make run-mock ARGS="feed --refresh"
 TERMIFLOW_MOCK=true go run -tags mock ./cmd/termiflow ask "rust async"
+```
 
-# Build for all platforms
-make release
+## Docker
+
+```bash
+docker build -t termiflow .
+docker run -it --rm \
+  -e TERMIFLOW_ANTHROPIC_API_KEY=sk-ant-... \
+  -e TERMIFLOW_TAVILY_API_KEY=tvly-... \
+  -v ~/.config/termiflow:/home/termiflow/.config/termiflow \
+  termiflow ask "your question"
 ```
 
 ## License
