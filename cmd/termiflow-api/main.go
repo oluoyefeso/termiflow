@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/oluoyefeso/termiflow/internal/api"
 )
 
 func main() {
+	// Load .env if present (local dev). Silently ignored in production.
+	_ = godotenv.Load()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
