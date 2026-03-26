@@ -26,22 +26,22 @@ type Server struct {
 }
 
 func NewServer() (*Server, error) {
-	anthropicKey := os.Getenv("ANTHROPIC_API_KEY")
+	anthropicKey := os.Getenv("TERMIFLOW_ANTHROPIC_API_KEY")
 	if anthropicKey == "" {
-		return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable is required")
+		return nil, fmt.Errorf("TERMIFLOW_ANTHROPIC_API_KEY environment variable is required")
 	}
 
-	tavilyKey := os.Getenv("TAVILY_API_KEY")
+	tavilyKey := os.Getenv("TERMIFLOW_TAVILY_API_KEY")
 	if tavilyKey == "" {
-		return nil, fmt.Errorf("TAVILY_API_KEY environment variable is required")
+		return nil, fmt.Errorf("TERMIFLOW_TAVILY_API_KEY environment variable is required")
 	}
 
-	adminSecret := os.Getenv("ADMIN_SECRET")
+	adminSecret := os.Getenv("TERMIFLOW_ADMIN_SECRET")
 	if adminSecret == "" {
-		return nil, fmt.Errorf("ADMIN_SECRET environment variable is required")
+		return nil, fmt.Errorf("TERMIFLOW_ADMIN_SECRET environment variable is required")
 	}
 
-	dbPath := os.Getenv("DATABASE_PATH")
+	dbPath := os.Getenv("TERMIFLOW_DATABASE_PATH")
 	if dbPath == "" {
 		dbPath = "./data/keys.db"
 	}
