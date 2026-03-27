@@ -168,6 +168,12 @@ func displayFeedItems(cmd *cobra.Command, cfg *config.Config) error {
 		return err
 	}
 
+	groupedItems := groupBySubscription(items, subs)
+
+	if jsonOutput {
+		return renderFeedJSON(items, subs, groupedItems)
+	}
+
 	fmt.Println(ui.HeaderWithDate("termiflow feed"))
 
 	if len(items) == 0 {
@@ -177,7 +183,6 @@ func displayFeedItems(cmd *cobra.Command, cfg *config.Config) error {
 		return nil
 	}
 
-	groupedItems := groupBySubscription(items, subs)
 	var itemIDs []int64
 	totalItems := 0
 	topicCount := 0
@@ -369,4 +374,78 @@ func isOfflineError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// JSON output types for feed command.
+
+type FeedItemJSON struct {
+	Title     string   `json:"title"`
+	Source    string   `json:"source"`
+	URL       string   `json:"url"`
+	Summary   string   `json:"summary"`
+	Tags      []string `json:"tags"`
+	TimeAgo   string   `json:"time_ago"`
+	IsRead    bool     `json:"is_read"`
+	Score     float64  `json:"relevance_score"`
+}
+
+type FeedTopicJSON struct {
+	Topic string         `json:"topic"`
+	Items []FeedItemJSON `json:"items"`
+}
+
+type FeedOutputJSON struct {
+	Topics []FeedTopicJSON `json:"topics"`
+	Total  int             `json:"total_items"`
+	Unread int             `json:"unread_items"`
+}
+
+func renderFeedJSON(items []*models.FeedItem, subs []*models.Subscription, grouped map[int64][]*models.FeedItem) error {
+	var topics []FeedTopicJSON
+	total := 0
+	unread := 0
+
+	for _, sub := range subs {
+		subItems, ok := grouped[sub.ID]
+		if !ok || len(subItems) == 0 {
+			continue
+		}
+
+		var jsonItems []FeedItemJSON
+		for _, item := range subItems {
+			tags := item.Tags
+			if tags == nil {
+				tags = []string{}
+			}
+			jsonItems = append(jsonItems, FeedItemJSON{
+				Title:   item.Title,
+				Source:  item.SourceName,
+				URL:     item.SourceURL,
+				Summary: item.Summary,
+				Tags:    tags,
+				TimeAgo: item.TimeAgo(),
+				IsRead:  item.IsRead,
+				Score:   item.RelevanceScore,
+			})
+			total++
+			if !item.IsRead {
+				unread++
+			}
+		}
+
+		topics = append(topics, FeedTopicJSON{
+			Topic: sub.Topic,
+			Items: jsonItems,
+		})
+	}
+
+	if topics == nil {
+		topics = []FeedTopicJSON{}
+	}
+
+	return ui.WriteJSON(FeedOutputJSON{
+		Topics: topics,
+		Total:  total,
+		Unread: unread,
+	}, version)
 }
