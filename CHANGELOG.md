@@ -2,6 +2,18 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.6.0] - 2026-03-27 — Live Refresh (Batch 6C)
+
+### Added
+- **Live feed refresh**: Pressing `r` in the TUI dashboard now fetches fresh articles from the API (Tavily search + LLM curation), not just reloading cached data from the database. Shows "⟳ Refreshing feeds..." during the operation and "Last refreshed Xm ago" after.
+- **Auto-refresh**: Dashboard automatically refreshes feeds every 30 minutes via `tea.Tick`. Skips if already refreshing or no subscriptions exist.
+- **Error reporting**: Refresh errors are surfaced to the user. Fatal errors (provider init, DB) show "Refresh failed: {reason}". Per-topic errors show "{N} topic(s) failed to refresh".
+- **`scheduler.NewFromConfig()`**: Shared factory function that creates a Scheduler from config + provider name. Used by both CLI and TUI, eliminating duplicate provider setup code.
+
+### Changed
+- **CLI feed refresh refactored**: `internal/cli/feed.go` now uses `scheduler.NewFromConfig()` instead of inline LLM + search provider initialization. Same behavior, less code.
+- **Double-press protection**: Pressing `r` while a refresh is already running is silently ignored.
+
 ## [0.2.5.0] - 2026-03-27 — Feed List + Article Detail (Batch 6B)
 
 ### Added
