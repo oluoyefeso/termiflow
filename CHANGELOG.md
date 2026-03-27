@@ -2,6 +2,20 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.3.0] - 2026-03-27 — CLI Polish (Batch 3)
+
+### Added
+- **`--json` global flag**: Structured JSON output for scripting. Common envelope: `{"data": ..., "meta": {"version": ..., "timestamp": ...}}`. Supported by `feed`, `status`, `ask`, `changelog`, and the no-args dashboard. `--json` implies `--quiet` to prevent spinners corrupting output. Error envelope includes partial data via `WriteJSONError`.
+- **`termiflow changelog` command**: Fetches release notes from GitHub Releases API. Shows latest 3 releases by default, `--all` for full history. Bloomberg-style rendering with colored tags (NEW=green, FIX=blue, BREAKING=red). Includes `--json` support.
+- **`termiflow` no-args dashboard**: Running `termiflow` with no arguments now shows a summary dashboard with subscription unread counts and command hints instead of help text. Zero-subscription state shows a getting-started guide.
+- **GitHub API ETag caching**: `changelog` and `upgrade` commands cache GitHub Releases API responses with ETag conditional requests. Avoids hitting the 60 req/hr unauthenticated rate limit.
+- **Shared GitHub API helper** (`internal/cli/github.go`): Extracted from `upgrade.go`. `fetchLatestRelease()` and `fetchReleases(limit)` with ETag caching, rate limit handling, and 5MB response size limit.
+
+### Changed
+- **`upgrade` command refactored**: Now uses shared `fetchLatestRelease()` instead of inline HTTP. Same behavior, less code.
+- **API key masking tightened**: Status command only shows partial key when key is longer than 20 characters (was 10). Shows fewer characters (first 4 + last 4).
+- **Cache file permissions**: GitHub releases cache written with 0600 (was 0644).
+
 ## [0.2.2.1] - 2026-03-27
 
 ### Fixed
