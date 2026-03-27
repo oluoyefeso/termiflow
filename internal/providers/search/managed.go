@@ -63,8 +63,7 @@ func (p *ManagedSearchProvider) Search(ctx context.Context, req SearchRequest) (
 		return nil, err
 	}
 
-	var resp *http.Response
-	for attempt := 0; ; attempt++ {
+	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) { //nolint:bodyclose // DoWithRetry manages body lifecycle
 		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/search", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err
@@ -72,21 +71,10 @@ func (p *ManagedSearchProvider) Search(ctx context.Context, req SearchRequest) (
 		httpReq.Header.Set("Content-Type", "application/json")
 		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 		httpReq.Header.Set("X-Termiflow-Version", llm.CLIVersion)
-
-		resp, err = p.client.Do(httpReq)
-		if err != nil {
-			return nil, fmt.Errorf("managed search: request failed: %w", err)
-		}
-		if !providers.IsRetryable(resp.StatusCode) || attempt >= providers.MaxRetries() {
-			break
-		}
-		resp.Body.Close()
-		delay := providers.RetryDelay(attempt, resp)
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(delay):
-		}
+		return p.client.Do(httpReq)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("managed search: %w", err)
 	}
 	defer resp.Body.Close()
 

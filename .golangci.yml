@@ -1,4 +1,5 @@
 # golangci-lint configuration for termiflow
+# Compatible with golangci-lint v1.64+
 
 run:
   timeout: 5m
@@ -36,14 +37,12 @@ linters-settings:
 
 issues:
   exclude-rules:
-    # Exclude some linters from running on tests files.
     - path: _test\.go
       linters:
         - errcheck
-    # Exclude shadow checking in tests
+        - bodyclose
     - path: _test\.go
       text: "shadow"
-    # Allow unused parameters in interface implementations
     - text: "unused-parameter"
       linters:
         - revive

@@ -123,6 +123,7 @@ func TestCategory_SiliconChips(t *testing.T) {
 	cat := GetCategoryByName("silicon-chips")
 	if cat == nil {
 		t.Fatal("silicon-chips category not found")
+		return
 	}
 
 	if cat.DisplayName != "Silicon & Semiconductors" {
@@ -156,6 +157,7 @@ func TestCategory_RustLang(t *testing.T) {
 	cat := GetCategoryByName("rust-lang")
 	if cat == nil {
 		t.Fatal("rust-lang category not found")
+		return
 	}
 
 	if cat.DisplayName != "Rust Programming" {
@@ -184,6 +186,7 @@ func TestCategory_LLMInference(t *testing.T) {
 	cat := GetCategoryByName("llm-inference")
 	if cat == nil {
 		t.Fatal("llm-inference category not found")
+		return
 	}
 
 	if cat.DisplayName != "LLM & AI Inference" {
