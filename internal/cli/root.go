@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/notifications"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
@@ -57,6 +59,26 @@ No browser switching, no context loss, no noise. Just signal.`,
 		// Initialize database
 		if err := db.Init(); err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
+		}
+
+		// Display notification banners and start background fetch
+		if !quiet {
+			nm := notifications.NewManager(
+				config.Get().Providers.Managed.BaseURL,
+				config.Get().Providers.Managed.APIKey,
+				version,
+				config.GetCacheDir(),
+				config.IsManagedMode(),
+			)
+			nm.LoadCache()
+			banners := nm.GetBanners()
+			for _, b := range banners {
+				fmt.Print(ui.Banner(b.Type, b.Message))
+			}
+			if len(banners) > 0 {
+				nm.MarkDisplayed(banners)
+			}
+			go nm.FetchAsync(context.Background())
 		}
 
 		return nil

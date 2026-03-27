@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect

@@ -39,6 +39,16 @@ var (
 			Foreground(Accent).
 			Bold(true)
 
+	// Banner colors
+	CyanColor = lipgloss.Color("51") // Cyan (info banners)
+	BlueColor = lipgloss.Color("33") // Blue (update/version banners)
+
+	CyanStyle = lipgloss.NewStyle().
+			Foreground(CyanColor)
+
+	BlueStyle = lipgloss.NewStyle().
+			Foreground(BlueColor)
+
 	// Tags: compact bracket style
 	TagStyle = lipgloss.NewStyle().
 			Foreground(Primary)
