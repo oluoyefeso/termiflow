@@ -2,6 +2,22 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.5.0] - 2026-03-27 — Feed List + Article Detail (Batch 6B)
+
+### Added
+- **Feed List screen**: Browse articles for any subscription with j/k navigation, read/unread indicators (● unread, ○ read), relevance scores, and source names. Press Enter on a dashboard subscription to open its feed.
+- **Article Detail screen**: Full article view with scrollable content, title, source URL, summary, tags, and relevance score. Press `o` to open in browser, `m` to mark as read, `n`/`p` to navigate between articles without returning to the list.
+- **Client-side filter**: Press `/` or `f` in the feed list to filter articles by title, summary, or source. Live filtering as you type. Esc clears the filter.
+- **Unread toggle**: Press `u` in the feed list to show only unread items.
+- **Auto mark-as-read**: Articles are automatically marked as read in the database when opened in detail view.
+
+### Fixed
+- **Global quit during filter input**: Typing "q" in the filter text field no longer quits the app. Global keys are bypassed when the feed is capturing text input.
+- **Detail back navigation**: Pressing Esc in article detail now correctly returns to the feed list (was silently dropped due to nil subscription guard).
+- **URL scheme validation**: `openBrowser` now only allows http/https URLs, preventing `file://` or `javascript:` scheme injection from malicious feed data. Child processes are properly reaped.
+- **UTF-8 title truncation**: Feed item titles are now truncated using rune-safe slicing instead of byte slicing, preventing garbled output for international characters.
+- **Stale feed data guard**: Feed items loaded from a previous subscription are discarded if the user switches topics before the DB query returns.
+
 ## [0.2.4.0] - 2026-03-27 — TUI Scaffold (Batch 6A)
 
 ### Added
