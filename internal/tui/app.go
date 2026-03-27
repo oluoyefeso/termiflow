@@ -97,6 +97,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case BannersLoadedMsg:
 		m.banners = msg.Banners
 		return m, nil
+
+	case AllRefreshDoneMsg, autoRefreshTickMsg:
+		// Always route refresh messages to dashboard, regardless of active screen
+		var cmd tea.Cmd
+		m.dashboard, cmd = m.dashboard.Update(msg)
+		return m, cmd
 	}
 
 	// Route to active screen
