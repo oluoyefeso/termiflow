@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	cfgFile  string
-	provider string
-	quiet    bool
-	debug    bool
-	noColor  bool
+	cfgFile    string
+	provider   string
+	quiet      bool
+	debug      bool
+	noColor    bool
+	jsonOutput bool
 
 	version string
 	commit  string
@@ -32,7 +33,15 @@ ask questions and subscribe to curated topic updates, all from the command line.
 
 Information comes to you where you already are — the terminal.
 No browser switching, no context loss, no noise. Just signal.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runDashboard(cmd)
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// JSON mode implies quiet to prevent spinners/banners corrupting JSON output
+		if jsonOutput {
+			quiet = true
+		}
+
 		// Skip init for certain commands
 		if cmd.Name() == "version" || cmd.Name() == "help" {
 			return nil
@@ -104,6 +113,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential output")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug logging")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
+	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "output as JSON")
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
@@ -114,6 +124,7 @@ func init() {
 	rootCmd.AddCommand(topicsCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(upgradeCmd)
+	rootCmd.AddCommand(changelogCmd)
 }
 
 func getProvider() string {

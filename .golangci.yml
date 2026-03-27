@@ -28,6 +28,7 @@ linters-settings:
     disable:
       - fieldalignment
       - shadow
+      - unusedwrite  # false positives with encoding/json (fields consumed via reflection)
   gofmt:
     simplify: true
   goimports:
