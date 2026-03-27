@@ -59,6 +59,11 @@ func Get() *sql.DB {
 	return db
 }
 
+// Begin starts a new database transaction.
+func Begin() (*sql.Tx, error) {
+	return db.Begin()
+}
+
 func Close() error {
 	if db != nil {
 		return db.Close()

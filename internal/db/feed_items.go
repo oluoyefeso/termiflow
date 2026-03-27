@@ -25,6 +25,26 @@ func CreateFeedItem(item *models.FeedItem) error {
 	return nil
 }
 
+// CreateFeedItemTx inserts a feed item within an existing transaction.
+// Uses INSERT OR IGNORE to handle duplicates via unique index on (subscription_id, source_url).
+func CreateFeedItemTx(tx *sql.Tx, item *models.FeedItem) error {
+	result, err := tx.Exec(`
+		INSERT OR IGNORE INTO feed_items (subscription_id, title, summary, content, source_name, source_url, published_at, relevance_score, tags)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, item.SubscriptionID, item.Title, item.Summary, item.Content, item.SourceName, item.SourceURL, item.PublishedAt, item.RelevanceScore, item.GetTagsJSON())
+
+	if err != nil {
+		return err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+	item.ID = id
+	return nil
+}
+
 func CreateFeedItems(items []*models.FeedItem) error {
 	tx, err := db.Begin()
 	if err != nil {

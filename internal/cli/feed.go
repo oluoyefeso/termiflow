@@ -296,9 +296,12 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 		rateLimited   []string // topic names that hit rate limits
 	)
 
+	sem := make(chan struct{}, 5)
 	for _, sub := range subs {
 		wg.Add(1)
+		sem <- struct{}{}
 		go func(sub *models.Subscription) {
+			defer func() { <-sem }()
 			defer wg.Done()
 
 			items, err := sched.RefreshSubscription(ctx, sub)

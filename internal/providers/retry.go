@@ -105,7 +105,8 @@ func DoWithRetry(ctx context.Context, fn func() (*http.Response, error)) (*http.
 }
 
 // ParseRateLimitResponse extracts the retry duration from a 429 response.
-// Tries JSON body field "retry_after_seconds" first, then Retry-After header.
+// WARNING: This function consumes resp.Body via io.ReadAll. The body cannot be read after calling this.
+// Tries JSON body field "retry_after_seconds" first, then falls back to Retry-After header.
 func ParseRateLimitResponse(resp *http.Response) time.Duration {
 	// Try JSON body first
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
