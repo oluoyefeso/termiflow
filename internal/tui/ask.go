@@ -156,7 +156,7 @@ func readNextChunk(chunks <-chan llm.StreamChunk) tea.Cmd {
 func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case AskSourcesLoadedMsg:
-		// Reject stale messages if we've already cancelled or moved on
+		// Reject stale messages if we've already canceled or moved on
 		if m.phase == askPhaseDone || m.phase == askPhaseInput {
 			return m, nil
 		}
