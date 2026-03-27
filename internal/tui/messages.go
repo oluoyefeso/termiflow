@@ -56,6 +56,31 @@ type BannersLoadedMsg struct {
 	Banners []BannerMsg
 }
 
+// FeedItemsLoadedMsg carries feed items after a DB fetch.
+type FeedItemsLoadedMsg struct {
+	Items []*models.FeedItem
+	Topic string
+	Err   error
+}
+
+// ItemMarkedReadMsg signals that an item was marked as read.
+type ItemMarkedReadMsg struct {
+	ItemID int64
+	Err    error
+}
+
+// OpenDetailMsg tells the app to open article detail for a specific item.
+type OpenDetailMsg struct {
+	Item  *models.FeedItem
+	Items []*models.FeedItem // full list for n/p navigation
+	Index int                // position in the list
+}
+
+// NavigateArticleMsg asks to move to the next or previous article in detail view.
+type NavigateArticleMsg struct {
+	Direction int // +1 for next, -1 for prev
+}
+
 // ErrMsg carries an error to display.
 type ErrMsg struct {
 	Err error
