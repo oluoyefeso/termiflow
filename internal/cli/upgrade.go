@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
+	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/notifications"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
@@ -32,7 +34,11 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get("https://api.github.com/repos/oluoyefeso/termiflow/releases/latest")
 	if err != nil {
-		sp.Error("Failed to check for updates")
+		sp.Stop()
+		// Try cache fallback
+		if upgradeFromCache() {
+			return nil
+		}
 		return fmt.Errorf("could not reach GitHub: %w", err)
 	}
 	defer resp.Body.Close()
@@ -47,7 +53,11 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		sp.Error("Failed to check for updates")
+		sp.Stop()
+		// Try cache fallback
+		if upgradeFromCache() {
+			return nil
+		}
 		return fmt.Errorf("GitHub API returned %s", resp.Status)
 	}
 
@@ -73,48 +83,63 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	sp.Stop()
+	showUpgradeInfo(current, release.TagName, release.HTMLURL)
+	return nil
+}
+
+func showUpgradeInfo(current, tagName, releaseURL string) {
 	fmt.Println()
 	fmt.Println(ui.Header("termiflow upgrade"))
 	fmt.Println()
 	fmt.Printf("  Current version: %s\n", ui.MutedStyle.Render("v"+current))
-	fmt.Printf("  Latest version:  %s\n", ui.TitleStyle.Render(release.TagName))
+	fmt.Printf("  Latest version:  %s\n", ui.TitleStyle.Render(tagName))
 	fmt.Println()
 	fmt.Println(ui.BoldStyle.Render("  Upgrade with:"))
 	fmt.Printf("    %s\n", ui.TitleStyle.Render(
-		fmt.Sprintf("go install github.com/oluoyefeso/termiflow/cmd/termiflow@%s", release.TagName)))
+		fmt.Sprintf("go install github.com/oluoyefeso/termiflow/cmd/termiflow@%s", tagName)))
 	fmt.Println()
-	fmt.Printf("  Release notes: %s\n", ui.MutedStyle.Render(release.HTMLURL))
-	fmt.Println()
-
-	return nil
+	if releaseURL != "" {
+		fmt.Printf("  Release notes: %s\n", ui.MutedStyle.Render(releaseURL))
+		fmt.Println()
+	}
 }
 
-// isNewerVersion returns true if candidate is newer than current.
-// Compares dot-separated numeric segments (e.g., "0.10.0" > "0.9.0").
+// upgradeFromCache attempts to show upgrade info from the notification cache.
+// Returns true if a newer version was found in the cache.
+func upgradeFromCache() bool {
+	nm := notifications.NewManager(
+		config.Get().Providers.Managed.BaseURL,
+		config.Get().Providers.Managed.APIKey,
+		version,
+		config.GetCacheDir(),
+		config.IsManagedMode(),
+	)
+	nm.LoadCache()
+
+	latestVersion := nm.GetLatestVersion()
+	if latestVersion == "" {
+		return false
+	}
+
+	current := strings.TrimPrefix(version, "v")
+	if !isNewerVersion(latestVersion, current) {
+		return false
+	}
+
+	tagName := "v" + latestVersion
+	showUpgradeInfo(current, tagName, "")
+	return true
+}
+
+// isNewerVersion returns true if candidate is newer than current using semver.
 func isNewerVersion(candidate, current string) bool {
-	cParts := strings.Split(candidate, ".")
-	curParts := strings.Split(current, ".")
-
-	maxLen := len(cParts)
-	if len(curParts) > maxLen {
-		maxLen = len(curParts)
+	candidateVer, err := semver.NewVersion(candidate)
+	if err != nil {
+		return false
 	}
-
-	for i := 0; i < maxLen; i++ {
-		var c, cur int
-		if i < len(cParts) {
-			c, _ = strconv.Atoi(cParts[i])
-		}
-		if i < len(curParts) {
-			cur, _ = strconv.Atoi(curParts[i])
-		}
-		if c > cur {
-			return true
-		}
-		if c < cur {
-			return false
-		}
+	currentVer, err := semver.NewVersion(current)
+	if err != nil {
+		return false
 	}
-	return false
+	return candidateVer.GreaterThan(currentVer)
 }
