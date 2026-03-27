@@ -88,6 +88,34 @@ type NavigateArticleMsg struct {
 	Direction int // +1 for next, -1 for prev
 }
 
+// Ask screen messages
+
+// AskSourcesLoadedMsg carries search results for the ask context.
+type AskSourcesLoadedMsg struct {
+	Sources []AskSource
+	Err     error
+}
+
+// AskSource is a simplified search result for display.
+type AskSource struct {
+	Title  string
+	URL    string
+	Domain string
+}
+
+// AskChunkMsg carries a single streaming chunk from the LLM.
+type AskChunkMsg struct {
+	Content string
+	Done    bool
+	Err     error
+}
+
+// AskSavedMsg signals that the ask result was saved to disk.
+type AskSavedMsg struct {
+	Path string
+	Err  error
+}
+
 // ErrMsg carries an error to display.
 type ErrMsg struct {
 	Err error
