@@ -60,3 +60,82 @@ var DashboardKeys = DashboardKeyMap{
 		key.WithHelp("j/down", "down"),
 	),
 }
+
+// FeedKeyMap defines keys for the feed list screen.
+type FeedKeyMap struct {
+	Enter  key.Binding
+	Back   key.Binding
+	Filter key.Binding
+	Unread key.Binding
+	Up     key.Binding
+	Down   key.Binding
+}
+
+var FeedKeys = FeedKeyMap{
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "open article"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Filter: key.NewBinding(
+		key.WithKeys("f", "/"),
+		key.WithHelp("/", "filter"),
+	),
+	Unread: key.NewBinding(
+		key.WithKeys("u"),
+		key.WithHelp("u", "unread only"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("k", "up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("j", "down"),
+	),
+}
+
+// DetailKeyMap defines keys for the article detail screen.
+type DetailKeyMap struct {
+	Back     key.Binding
+	Open     key.Binding
+	MarkRead key.Binding
+	Next     key.Binding
+	Prev     key.Binding
+	Up       key.Binding
+	Down     key.Binding
+}
+
+var DetailKeys = DetailKeyMap{
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Open: key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", "open in browser"),
+	),
+	MarkRead: key.NewBinding(
+		key.WithKeys("m"),
+		key.WithHelp("m", "toggle read"),
+	),
+	Next: key.NewBinding(
+		key.WithKeys("n"),
+		key.WithHelp("n", "next article"),
+	),
+	Prev: key.NewBinding(
+		key.WithKeys("p"),
+		key.WithHelp("p", "prev article"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("k", "scroll up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("j", "scroll down"),
+	),
+}
