@@ -3,12 +3,15 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/notifications"
+	"github.com/oluoyefeso/termiflow/internal/tui"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
@@ -23,6 +26,10 @@ var (
 	version string
 	commit  string
 	date    string
+
+	// cachedBanners holds notification banners loaded during PersistentPreRunE,
+	// so the TUI can display them instead of printing to stdout.
+	cachedBanners []tui.BannerMsg
 )
 
 var rootCmd = &cobra.Command{
@@ -34,6 +41,10 @@ ask questions and subscribe to curated topic updates, all from the command line.
 Information comes to you where you already are — the terminal.
 No browser switching, no context loss, no noise. Just signal.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Launch TUI when running interactively (TTY, not JSON, not quiet)
+		if !jsonOutput && !quiet && term.IsTerminal(int(os.Stdin.Fd())) {
+			return tui.Run(cachedBanners)
+		}
 		return runDashboard(cmd)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -70,7 +81,7 @@ No browser switching, no context loss, no noise. Just signal.`,
 			return fmt.Errorf("failed to initialize database: %w", err)
 		}
 
-		// Display notification banners and start background fetch
+		// Load notification banners and start background fetch
 		if !quiet {
 			nm := notifications.NewManager(
 				config.Get().Providers.Managed.BaseURL,
@@ -81,9 +92,24 @@ No browser switching, no context loss, no noise. Just signal.`,
 			)
 			nm.LoadCache()
 			banners := nm.GetBanners()
-			for _, b := range banners {
-				fmt.Print(ui.Banner(b.Type, b.Message))
+
+			// If this is the root command in TUI mode (interactive TTY, not JSON),
+			// cache banners for the TUI. Otherwise, print them to stdout as before.
+			isTUI := cmd.Name() == "termiflow" && !jsonOutput && term.IsTerminal(int(os.Stdin.Fd()))
+			if isTUI {
+				cachedBanners = nil
+				for _, b := range banners {
+					cachedBanners = append(cachedBanners, tui.BannerMsg{
+						Type:    b.Type,
+						Message: b.Message,
+					})
+				}
+			} else {
+				for _, b := range banners {
+					fmt.Print(ui.Banner(b.Type, b.Message))
+				}
 			}
+
 			if len(banners) > 0 {
 				nm.MarkDisplayed(banners)
 			}
