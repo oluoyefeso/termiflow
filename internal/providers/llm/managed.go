@@ -1,12 +1,14 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/oluoyefeso/termiflow/internal/providers"
@@ -65,8 +67,7 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 		return nil, err
 	}
 
-	var resp *http.Response
-	for attempt := 0; ; attempt++ {
+	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) {
 		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err
@@ -74,21 +75,10 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 		httpReq.Header.Set("Content-Type", "application/json")
 		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 		httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
-
-		resp, err = p.client.Do(httpReq)
-		if err != nil {
-			return nil, fmt.Errorf("managed: request failed: %w", err)
-		}
-		if !providers.IsRetryable(resp.StatusCode) || attempt >= providers.MaxRetries() {
-			break
-		}
-		resp.Body.Close()
-		delay := providers.RetryDelay(attempt, resp)
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(delay):
-		}
+		return p.client.Do(httpReq)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("managed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -120,18 +110,98 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 	}, nil
 }
 
-// Stream buffers the response via Complete and emits it as a single chunk.
-// SSE streaming is deferred to a future release.
+// streamClient is a separate HTTP client with no timeout for SSE connections,
+// which stay open for the full response generation.
+var streamClient = &http.Client{}
+
+// Stream sends a streaming request to the managed API and returns SSE chunks in real-time.
+// Uses a separate HTTP client with no timeout (SSE connections stay open for the full generation).
 func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-chan StreamChunk, error) {
-	resp, err := p.Complete(ctx, req)
+	var systemPrompt string
+	var messages []anthropicMessage
+
+	for _, m := range req.Messages {
+		if m.Role == "system" {
+			systemPrompt = m.Content
+		} else {
+			messages = append(messages, anthropicMessage(m))
+		}
+	}
+
+	body := anthropicRequest{
+		Model:     "claude-sonnet-4-20250514",
+		MaxTokens: req.MaxTokens,
+		Messages:  messages,
+		System:    systemPrompt,
+		Stream:    true,
+	}
+
+	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
-	ch := make(chan StreamChunk, 2)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+	httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
+	httpReq.Header.Set("Accept", "text/event-stream")
+
+	resp, err := streamClient.Do(httpReq) //nolint:bodyclose // closed in goroutine
+	if err != nil {
+		return nil, fmt.Errorf("managed: stream request failed: %w", err)
+	}
+
+	// Handle non-200 responses (including 429 rate limit)
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusTooManyRequests {
+			retryAfter := providers.ParseRateLimitResponse(resp)
+			return nil, &providers.RateLimitError{RetryAfter: retryAfter}
+		}
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("managed: API error %s: %s", resp.Status, string(bodyBytes))
+	}
+
+	chunks := make(chan StreamChunk)
+
 	go func() {
-		ch <- StreamChunk{Content: resp.Content}
-		ch <- StreamChunk{Done: true}
-		close(ch)
+		defer close(chunks)
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			if !strings.HasPrefix(line, "data: ") {
+				continue
+			}
+
+			data := strings.TrimPrefix(line, "data: ")
+
+			var event anthropicStreamEvent
+			if err := json.Unmarshal([]byte(data), &event); err != nil {
+				continue
+			}
+
+			switch event.Type {
+			case "content_block_delta":
+				if event.Delta.Text != "" {
+					chunks <- StreamChunk{Content: event.Delta.Text}
+				}
+			case "message_stop":
+				chunks <- StreamChunk{Done: true}
+				return
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			chunks <- StreamChunk{Error: err}
+		}
 	}()
-	return ch, nil
+
+	return chunks, nil
 }
