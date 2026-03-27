@@ -14,6 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
@@ -100,9 +101,13 @@ func streamLLM(question string, sources []AskSource, ctx context.Context) tea.Cm
 		}
 
 		prompt := buildAskPrompt(question, sources)
+		systemPrompt := "You are a helpful assistant that provides accurate, well-researched answers. Use the provided sources to inform your response. Be concise but thorough."
+		if userCtx := buildUserContext(); userCtx != "" {
+			systemPrompt += "\n\n" + userCtx
+		}
 		chunks, err := provider.Stream(ctx, llm.CompletionRequest{
 			Messages: []llm.Message{
-				{Role: "system", Content: "You are a helpful assistant that provides accurate, well-researched answers. Use the provided sources to inform your response. Be concise but thorough."},
+				{Role: "system", Content: systemPrompt},
 				{Role: "user", Content: prompt},
 			},
 			MaxTokens:   2048,
@@ -486,6 +491,38 @@ func getAskSaveDir() string {
 		home = "."
 	}
 	return filepath.Join(home, ".local", "share", "termiflow", "saved")
+}
+
+// buildUserContext queries the user's termiflow state and formats it as context
+// for the system prompt, so the LLM can answer questions like "how many subscriptions
+// do I have?" or "when was rust-lang last refreshed?".
+func buildUserContext() string {
+	subs, err := db.GetActiveSubscriptions()
+	if err != nil || len(subs) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("The user is running termiflow, a terminal news tool. Here is their current state:\n")
+
+	if config.IsManagedMode() {
+		sb.WriteString("Mode: Managed (using termiflow API)\n")
+	} else {
+		cfg := config.Get()
+		sb.WriteString(fmt.Sprintf("Mode: Self-hosted (provider: %s)\n", cfg.General.DefaultProvider))
+	}
+
+	sb.WriteString(fmt.Sprintf("Subscriptions: %d active\n", len(subs)))
+	for _, sub := range subs {
+		total, unread, _ := db.GetSubscriptionItemCount(sub.ID)
+		lastFetch := "never"
+		if sub.LastFetchedAt != nil {
+			lastFetch = sub.LastFetchedAt.Format("2006-01-02 15:04")
+		}
+		sb.WriteString(fmt.Sprintf("- %s (%s, %d items, %d unread, last fetched: %s)\n",
+			sub.Topic, sub.Frequency, total, unread, lastFetch))
+	}
+	return sb.String()
 }
 
 var askNonAlpha = regexp.MustCompile(`[^a-z0-9]+`)

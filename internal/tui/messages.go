@@ -116,6 +116,40 @@ type AskSavedMsg struct {
 	Err  error
 }
 
+// Topics screen messages
+
+// TopicSubscribedMsg signals a new subscription was created.
+type TopicSubscribedMsg struct {
+	Topic string
+	Err   error
+}
+
+// TopicUnsubscribedMsg signals a subscription was deleted.
+type TopicUnsubscribedMsg struct {
+	Topic string
+	Err   error
+}
+
+// TopicFrequencyChangedMsg signals a subscription frequency was updated.
+type TopicFrequencyChangedMsg struct {
+	Topic string
+	Err   error
+}
+
+// TopicsLoadedMsg carries topic data for the topics browser.
+type TopicsLoadedMsg struct {
+	Subscribed []SubInfo
+	Available  []AvailableCategory
+	Err        error
+}
+
+// AvailableCategory is a predefined category not yet subscribed.
+type AvailableCategory struct {
+	Name        string
+	DisplayName string
+	Description string
+}
+
 // ErrMsg carries an error to display.
 type ErrMsg struct {
 	Err error
