@@ -171,6 +171,13 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 	go func() {
 		defer close(chunks)
 		defer resp.Body.Close()
+		// Always send Done before close so consumers checking Done don't hang on connection drops
+		defer func() {
+			select {
+			case chunks <- StreamChunk{Done: true}:
+			case <-ctx.Done():
+			}
+		}()
 
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
@@ -190,16 +197,22 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 			switch event.Type {
 			case "content_block_delta":
 				if event.Delta.Text != "" {
-					chunks <- StreamChunk{Content: event.Delta.Text}
+					select {
+					case chunks <- StreamChunk{Content: event.Delta.Text}:
+					case <-ctx.Done():
+						return
+					}
 				}
 			case "message_stop":
-				chunks <- StreamChunk{Done: true}
-				return
+				return // deferred Done send handles this
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
-			chunks <- StreamChunk{Error: err}
+			select {
+			case chunks <- StreamChunk{Error: err}:
+			case <-ctx.Done():
+			}
 		}
 	}()
 
