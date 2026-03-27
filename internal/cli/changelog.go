@@ -64,10 +64,11 @@ func runChangelog(cmd *cobra.Command, args []string) error {
 
 	if len(releases) == 0 {
 		if jsonOutput {
-			return ui.WriteJSON(ChangelogOutputJSON{
+			out := ChangelogOutputJSON{
 				Releases: []ChangelogReleaseJSON{},
 				Current:  version,
-			}, version)
+			}
+			return ui.WriteJSON(out, version)
 		}
 		fmt.Println()
 		fmt.Print(ui.Warning("No releases published yet"))
@@ -95,10 +96,11 @@ func renderChangelogJSON(releases []githubRelease) error {
 			Body:        r.Body,
 		})
 	}
-	return ui.WriteJSON(ChangelogOutputJSON{
+	out := ChangelogOutputJSON{
 		Releases: jsonReleases,
 		Current:  version,
-	}, version)
+	}
+	return ui.WriteJSON(out, version)
 }
 
 func renderChangelogTerminal(releases []githubRelease) {

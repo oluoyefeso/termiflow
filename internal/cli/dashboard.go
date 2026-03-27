@@ -31,11 +31,12 @@ func runDashboard(cmd *cobra.Command) error {
 
 	if len(subs) == 0 {
 		if jsonOutput {
-			return ui.WriteJSON(DashboardOutputJSON{
+			out := DashboardOutputJSON{
 				Subscriptions: []DashboardSubJSON{},
 				TotalUnread:   0,
 				Version:       version,
-			}, version)
+			}
+			return ui.WriteJSON(out, version)
 		}
 		showGettingStarted()
 		return nil
@@ -66,17 +67,19 @@ func runDashboard(cmd *cobra.Command) error {
 	if jsonOutput {
 		jsonSubs := make([]DashboardSubJSON, 0, len(infos))
 		for _, info := range infos {
-			jsonSubs = append(jsonSubs, DashboardSubJSON{
+			s := DashboardSubJSON{
 				Topic:  info.topic,
 				Unread: info.unread,
 				Total:  info.total,
-			})
+			}
+			jsonSubs = append(jsonSubs, s)
 		}
-		return ui.WriteJSON(DashboardOutputJSON{
+		out := DashboardOutputJSON{
 			Subscriptions: jsonSubs,
 			TotalUnread:   totalUnread,
 			Version:       version,
-		}, version)
+		}
+		return ui.WriteJSON(out, version)
 	}
 
 	// Terminal render
