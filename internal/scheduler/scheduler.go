@@ -6,6 +6,7 @@ import (
 	"time"
 
 	engine "github.com/oluoyefeso/termiflow-engine"
+	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
@@ -17,6 +18,22 @@ type Scheduler struct {
 	searchProvider search.Provider
 	rssProvider    *search.RSSProvider
 	curator        *engine.Curator
+}
+
+// NewFromConfig creates a Scheduler with the appropriate LLM and search providers
+// resolved from the config. Used by both CLI and TUI.
+func NewFromConfig(cfg *config.Config, providerName string) (*Scheduler, error) {
+	llmProvider, err := llm.GetProvider(providerName, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	searchProvider, err := search.GetSearchProvider(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return New(llmProvider, searchProvider), nil
 }
 
 func New(llmProvider llm.Provider, searchProvider search.Provider) *Scheduler {

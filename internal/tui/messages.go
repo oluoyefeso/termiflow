@@ -38,11 +38,18 @@ type SubInfo struct {
 	Unread int
 }
 
-// FeedRefreshedMsg signals that a feed refresh completed.
+// FeedRefreshedMsg signals that one subscription's refresh completed.
 type FeedRefreshedMsg struct {
 	Topic    string
 	NewItems int
 	Err      error
+}
+
+// AllRefreshDoneMsg signals that all subscriptions have been refreshed.
+type AllRefreshDoneMsg struct {
+	TotalNew int
+	Errors   int   // count of per-topic errors
+	Err      error // fatal error (provider init, DB)
 }
 
 // BannerMsg carries a notification banner to display.
@@ -54,6 +61,31 @@ type BannerMsg struct {
 // BannersLoadedMsg carries all banners from the notification system.
 type BannersLoadedMsg struct {
 	Banners []BannerMsg
+}
+
+// FeedItemsLoadedMsg carries feed items after a DB fetch.
+type FeedItemsLoadedMsg struct {
+	Items []*models.FeedItem
+	Topic string
+	Err   error
+}
+
+// ItemMarkedReadMsg signals that an item was marked as read.
+type ItemMarkedReadMsg struct {
+	ItemID int64
+	Err    error
+}
+
+// OpenDetailMsg tells the app to open article detail for a specific item.
+type OpenDetailMsg struct {
+	Item  *models.FeedItem
+	Items []*models.FeedItem // full list for n/p navigation
+	Index int                // position in the list
+}
+
+// NavigateArticleMsg asks to move to the next or previous article in detail view.
+type NavigateArticleMsg struct {
+	Direction int // +1 for next, -1 for prev
 }
 
 // ErrMsg carries an error to display.

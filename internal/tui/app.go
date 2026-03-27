@@ -13,6 +13,8 @@ import (
 type AppModel struct {
 	activeScreen Screen
 	dashboard    DashboardModel
+	feed         FeedModel
+	detail       DetailModel
 	width        int
 	height       int
 	banners      []BannerMsg
@@ -37,15 +39,25 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Forward to active screen (currently only dashboard exists)
-		if m.activeScreen == ScreenDashboard {
-			var cmd tea.Cmd
+		// Forward to active screen
+		var cmd tea.Cmd
+		switch m.activeScreen {
+		case ScreenDashboard:
 			m.dashboard, cmd = m.dashboard.Update(msg)
-			return m, cmd
+		case ScreenFeed:
+			m.feed, cmd = m.feed.Update(msg)
+		case ScreenDetail:
+			m.detail, cmd = m.detail.Update(msg)
 		}
-		return m, nil
+		return m, cmd
 
 	case tea.KeyMsg:
+		// Skip global keys when a screen is capturing text input (e.g., filter)
+		if m.activeScreen == ScreenFeed && m.feed.filtering {
+			var cmd tea.Cmd
+			m.feed, cmd = m.feed.Update(msg)
+			return m, cmd
+		}
 		// Global keys
 		if key.Matches(msg, GlobalKeys.Quit) {
 			return m, tea.Quit
@@ -58,23 +70,39 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.showHelp {
 			return m, nil
 		}
-		// Escape returns to dashboard from any other screen
-		if msg.String() == "esc" && m.activeScreen != ScreenDashboard {
-			m.activeScreen = ScreenDashboard
-			return m, nil
-		}
 
 	case SwitchScreenMsg:
-		// Don't switch to screens that aren't implemented yet
-		if msg.Screen != ScreenDashboard {
-			return m, nil
+		switch msg.Screen {
+		case ScreenDashboard:
+			m.activeScreen = ScreenDashboard
+			// Refresh dashboard data when returning
+			return m, loadSubscriptions
+		case ScreenFeed:
+			if msg.Subscription != nil {
+				// New feed: initialize from subscription
+				m.feed = NewFeedModel(msg.Subscription)
+				m.activeScreen = ScreenFeed
+				return m, m.feed.Init()
+			}
+			// Returning from detail: reuse existing feed model
+			m.activeScreen = ScreenFeed
 		}
-		m.activeScreen = msg.Screen
 		return m, nil
+
+	case OpenDetailMsg:
+		m.detail = NewDetailModel(msg.Item, msg.Items, msg.Index)
+		m.activeScreen = ScreenDetail
+		return m, m.detail.Init()
 
 	case BannersLoadedMsg:
 		m.banners = msg.Banners
 		return m, nil
+
+	case AllRefreshDoneMsg, autoRefreshTickMsg:
+		// Always route refresh messages to dashboard, regardless of active screen
+		var cmd tea.Cmd
+		m.dashboard, cmd = m.dashboard.Update(msg)
+		return m, cmd
 	}
 
 	// Route to active screen
@@ -82,6 +110,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.activeScreen {
 	case ScreenDashboard:
 		m.dashboard, cmd = m.dashboard.Update(msg)
+	case ScreenFeed:
+		m.feed, cmd = m.feed.Update(msg)
+	case ScreenDetail:
+		m.detail, cmd = m.detail.Update(msg)
 	}
 
 	return m, cmd
@@ -105,6 +137,10 @@ func (m AppModel) View() string {
 	switch m.activeScreen {
 	case ScreenDashboard:
 		b.WriteString(m.dashboard.View())
+	case ScreenFeed:
+		b.WriteString(m.feed.View())
+	case ScreenDetail:
+		b.WriteString(m.detail.View())
 	default:
 		b.WriteString(StyleMuted.Render("  Screen not implemented yet"))
 	}
@@ -150,6 +186,26 @@ func (m AppModel) renderHelp() string {
 			{"j/k, arrows", "navigate subscriptions"},
 			{"enter", "open feed for selected topic"},
 			{"r", "refresh all feeds"},
+			{"?", "toggle this help"},
+			{"q, ctrl+c", "quit"},
+		}
+	case ScreenFeed:
+		entries = []helpEntry{
+			{"j/k, arrows", "navigate articles"},
+			{"enter", "open article detail"},
+			{"/", "filter articles"},
+			{"u", "toggle unread only"},
+			{"esc", "back to dashboard"},
+			{"?", "toggle this help"},
+			{"q, ctrl+c", "quit"},
+		}
+	case ScreenDetail:
+		entries = []helpEntry{
+			{"j/k, arrows", "scroll article"},
+			{"n/p", "next/prev article"},
+			{"o", "open in browser"},
+			{"m", "toggle read/unread"},
+			{"esc", "back to feed list"},
 			{"?", "toggle this help"},
 			{"q, ctrl+c", "quit"},
 		}
