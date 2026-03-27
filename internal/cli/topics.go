@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 
@@ -108,5 +110,6 @@ func capitalize(s string) string {
 	if len(s) == 0 {
 		return s
 	}
-	return string(s[0]-32) + s[1:]
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
