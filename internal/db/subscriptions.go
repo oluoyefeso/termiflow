@@ -91,6 +91,13 @@ func DeleteAllSubscriptions() error {
 	return err
 }
 
+// UpdateLastFetchedTx updates the last_fetched_at timestamp within an existing transaction.
+func UpdateLastFetchedTx(tx *sql.Tx, id int64) error {
+	now := time.Now()
+	_, err := tx.Exec(`UPDATE subscriptions SET last_fetched_at = ?, updated_at = ? WHERE id = ?`, now, now, id)
+	return err
+}
+
 func UpdateLastFetched(id int64) error {
 	now := time.Now()
 	_, err := db.Exec(`UPDATE subscriptions SET last_fetched_at = ?, updated_at = ? WHERE id = ?`, now, now, id)

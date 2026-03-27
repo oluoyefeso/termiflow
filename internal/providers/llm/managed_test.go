@@ -195,6 +195,93 @@ func TestManagedProviderStreamSSE(t *testing.T) {
 	}
 }
 
+func TestManagedProviderStreamRetry503(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := attempts.Add(1)
+		if n <= 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		flusher, _ := w.(http.Flusher)
+		fmt.Fprint(w, "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"recovered\"}}\n\n")
+		flusher.Flush()
+		fmt.Fprint(w, "data: {\"type\":\"message_stop\"}\n\n")
+		flusher.Flush()
+	}))
+	defer srv.Close()
+
+	p := NewManagedProvider("tf_testkey", srv.URL)
+	ch, err := p.Stream(context.Background(), CompletionRequest{
+		Messages:  []Message{{Role: "user", Content: "hi"}},
+		MaxTokens: 100,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var chunks []StreamChunk
+	for c := range ch {
+		chunks = append(chunks, c)
+	}
+	if got := int(attempts.Load()); got != 3 {
+		t.Errorf("expected 3 total requests, got %d", got)
+	}
+	if len(chunks) < 2 {
+		t.Fatalf("expected at least 2 chunks (content + done), got %d", len(chunks))
+	}
+	if chunks[0].Content != "recovered" {
+		t.Errorf("expected 'recovered', got %q", chunks[0].Content)
+	}
+	if !chunks[len(chunks)-1].Done {
+		t.Error("expected last chunk to be Done")
+	}
+}
+
+func TestManagedProviderStreamLargeSSEEvent(t *testing.T) {
+	// Generate a string larger than the default 64KB scanner buffer
+	largeContent := make([]byte, 80*1024)
+	for i := range largeContent {
+		largeContent[i] = 'A'
+	}
+	largeStr := string(largeContent)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		flusher, _ := w.(http.Flusher)
+
+		// Send a large SSE event that exceeds default 64KB bufio.Scanner buffer
+		fmt.Fprintf(w, "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":%q}}\n\n", largeStr)
+		flusher.Flush()
+		fmt.Fprint(w, "data: {\"type\":\"message_stop\"}\n\n")
+		flusher.Flush()
+	}))
+	defer srv.Close()
+
+	p := NewManagedProvider("tf_testkey", srv.URL)
+	ch, err := p.Stream(context.Background(), CompletionRequest{
+		Messages:  []Message{{Role: "user", Content: "hi"}},
+		MaxTokens: 100,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var chunks []StreamChunk
+	for c := range ch {
+		chunks = append(chunks, c)
+	}
+	if len(chunks) < 2 {
+		t.Fatalf("expected at least 2 chunks (content + done), got %d", len(chunks))
+	}
+	if chunks[0].Content != largeStr {
+		t.Errorf("large content not received intact: got %d bytes, want %d bytes", len(chunks[0].Content), len(largeStr))
+	}
+}
+
 func TestManagedProviderStreamNon200(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
