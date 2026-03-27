@@ -2,6 +2,21 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.7.0] - 2026-03-27 — Ask Screen (Batch 6D)
+
+### Added
+- **Inline Ask screen**: Press `a` from the dashboard to ask any question. Sources are searched via Tavily, then the LLM streams a response token-by-token in real-time. Press `s` to save the answer to a markdown file. Press `Ctrl+C` to cancel during streaming.
+- **Streaming cursor**: Shows a blinking `▍` cursor while the LLM is generating, giving clear visual feedback that the response is in progress.
+- **Source display**: After the response completes, search sources are listed below the answer with domain names and titles.
+- **Save to disk**: Press `s` after the answer completes to save the Q&A and sources to `~/.local/share/termiflow/saved/{timestamp}-{slug}.md` (0600 permissions).
+
+### Fixed
+- **Global quit during Ask streaming**: Pressing `q` or `Ctrl+C` during searching/streaming now cancels the request instead of quitting the entire app. Only the done phase allows global quit.
+- **Stale stream chunks after cancel**: Cancelling a stream and starting a new question no longer corrupts the new answer with leftover chunks from the old stream. Phase guards reject stale messages.
+- **Context leak on re-ask**: Creating a new context for a new question now properly cancels the old context first, preventing orphaned HTTP connections.
+- **Unbounded scroll in Ask**: Scroll position is now clamped based on content length.
+- **Dead code cleanup**: Removed unreachable `AskChunkMsg.Content` handler branch.
+
 ## [0.2.6.0] - 2026-03-27 — Live Refresh (Batch 6C)
 
 ### Added

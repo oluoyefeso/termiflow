@@ -15,6 +15,7 @@ type AppModel struct {
 	dashboard    DashboardModel
 	feed         FeedModel
 	detail       DetailModel
+	ask          AskModel
 	width        int
 	height       int
 	banners      []BannerMsg
@@ -48,14 +49,23 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.feed, cmd = m.feed.Update(msg)
 		case ScreenDetail:
 			m.detail, cmd = m.detail.Update(msg)
+		case ScreenAsk:
+			m.ask, cmd = m.ask.Update(msg)
 		}
 		return m, cmd
 
 	case tea.KeyMsg:
-		// Skip global keys when a screen is capturing text input (e.g., filter)
+		// Skip global keys when a screen is capturing text input
 		if m.activeScreen == ScreenFeed && m.feed.filtering {
 			var cmd tea.Cmd
 			m.feed, cmd = m.feed.Update(msg)
+			return m, cmd
+		}
+		if m.activeScreen == ScreenAsk && m.ask.phase != askPhaseDone {
+			// During input, searching, and streaming: route all keys to ask screen
+			// (prevents q/ctrl+c from quitting during streaming)
+			var cmd tea.Cmd
+			m.ask, cmd = m.ask.Update(msg)
 			return m, cmd
 		}
 		// Global keys
@@ -86,6 +96,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Returning from detail: reuse existing feed model
 			m.activeScreen = ScreenFeed
+		case ScreenAsk:
+			// Cancel any inflight stream from a previous ask
+			if m.ask.cancel != nil {
+				m.ask.cancel()
+			}
+			m.ask = NewAskModel()
+			m.activeScreen = ScreenAsk
+			return m, m.ask.Init()
 		}
 		return m, nil
 
@@ -114,6 +132,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.feed, cmd = m.feed.Update(msg)
 	case ScreenDetail:
 		m.detail, cmd = m.detail.Update(msg)
+	case ScreenAsk:
+		m.ask, cmd = m.ask.Update(msg)
 	}
 
 	return m, cmd
@@ -141,6 +161,8 @@ func (m AppModel) View() string {
 		b.WriteString(m.feed.View())
 	case ScreenDetail:
 		b.WriteString(m.detail.View())
+	case ScreenAsk:
+		b.WriteString(m.ask.View())
 	default:
 		b.WriteString(StyleMuted.Render("  Screen not implemented yet"))
 	}
@@ -185,6 +207,7 @@ func (m AppModel) renderHelp() string {
 		entries = []helpEntry{
 			{"j/k, arrows", "navigate subscriptions"},
 			{"enter", "open feed for selected topic"},
+			{"a", "ask a question"},
 			{"r", "refresh all feeds"},
 			{"?", "toggle this help"},
 			{"q, ctrl+c", "quit"},
@@ -208,6 +231,15 @@ func (m AppModel) renderHelp() string {
 			{"esc", "back to feed list"},
 			{"?", "toggle this help"},
 			{"q, ctrl+c", "quit"},
+		}
+	case ScreenAsk:
+		entries = []helpEntry{
+			{"enter", "submit question"},
+			{"s", "save answer (when done)"},
+			{"j/k", "scroll response"},
+			{"ctrl+c", "cancel streaming"},
+			{"esc", "new question / back"},
+			{"q", "quit"},
 		}
 	}
 
