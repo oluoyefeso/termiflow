@@ -116,6 +116,10 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		for _, s := range m.subs {
 			m.totalUnread += s.Unread
 		}
+		// Clamp cursor after reload (subscriptions may have been deleted)
+		if m.cursor >= len(m.subs) && len(m.subs) > 0 {
+			m.cursor = len(m.subs) - 1
+		}
 		return m, nil
 
 	case AllRefreshDoneMsg:
@@ -164,6 +168,14 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		case key.Matches(msg, DashboardKeys.Ask):
 			return m, func() tea.Msg {
 				return SwitchScreenMsg{Screen: ScreenAsk}
+			}
+		case key.Matches(msg, DashboardKeys.Topics):
+			return m, func() tea.Msg {
+				return SwitchScreenMsg{Screen: ScreenTopics}
+			}
+		case key.Matches(msg, DashboardKeys.Status):
+			return m, func() tea.Msg {
+				return SwitchScreenMsg{Screen: ScreenStatus}
 			}
 		}
 

@@ -16,6 +16,8 @@ type AppModel struct {
 	feed         FeedModel
 	detail       DetailModel
 	ask          AskModel
+	topics       TopicsModel
+	status       StatusModel
 	width        int
 	height       int
 	banners      []BannerMsg
@@ -51,6 +53,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detail, cmd = m.detail.Update(msg)
 		case ScreenAsk:
 			m.ask, cmd = m.ask.Update(msg)
+		case ScreenTopics:
+			m.topics, cmd = m.topics.Update(msg)
+		case ScreenStatus:
+			m.status, cmd = m.status.Update(msg)
 		}
 		return m, cmd
 
@@ -61,9 +67,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.feed, cmd = m.feed.Update(msg)
 			return m, cmd
 		}
+		if m.activeScreen == ScreenTopics && (m.topics.freqPicking || m.topics.confirming) {
+			// During frequency picker or delete confirmation: route keys to topics
+			var cmd tea.Cmd
+			m.topics, cmd = m.topics.Update(msg)
+			return m, cmd
+		}
 		if m.activeScreen == ScreenAsk && m.ask.phase != askPhaseDone {
 			// During input, searching, and streaming: route all keys to ask screen
-			// (prevents q/ctrl+c from quitting during streaming)
 			var cmd tea.Cmd
 			m.ask, cmd = m.ask.Update(msg)
 			return m, cmd
@@ -104,6 +115,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ask = NewAskModel()
 			m.activeScreen = ScreenAsk
 			return m, m.ask.Init()
+		case ScreenTopics:
+			m.topics = NewTopicsModel()
+			m.activeScreen = ScreenTopics
+			return m, m.topics.Init()
+		case ScreenStatus:
+			m.status = NewStatusModel()
+			m.activeScreen = ScreenStatus
+			return m, m.status.Init()
 		}
 		return m, nil
 
@@ -134,6 +153,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.detail, cmd = m.detail.Update(msg)
 	case ScreenAsk:
 		m.ask, cmd = m.ask.Update(msg)
+	case ScreenTopics:
+		m.topics, cmd = m.topics.Update(msg)
+	case ScreenStatus:
+		m.status, cmd = m.status.Update(msg)
 	}
 
 	return m, cmd
@@ -163,6 +186,10 @@ func (m AppModel) View() string {
 		b.WriteString(m.detail.View())
 	case ScreenAsk:
 		b.WriteString(m.ask.View())
+	case ScreenTopics:
+		b.WriteString(m.topics.View())
+	case ScreenStatus:
+		b.WriteString(m.status.View())
 	default:
 		b.WriteString(StyleMuted.Render("  Screen not implemented yet"))
 	}
@@ -208,6 +235,8 @@ func (m AppModel) renderHelp() string {
 			{"j/k, arrows", "navigate subscriptions"},
 			{"enter", "open feed for selected topic"},
 			{"a", "ask a question"},
+			{"t", "topics browser"},
+			{"s", "status info"},
 			{"r", "refresh all feeds"},
 			{"?", "toggle this help"},
 			{"q, ctrl+c", "quit"},
@@ -240,6 +269,19 @@ func (m AppModel) renderHelp() string {
 			{"ctrl+c", "cancel streaming"},
 			{"esc", "new question / back"},
 			{"q", "quit"},
+		}
+	case ScreenTopics:
+		entries = []helpEntry{
+			{"j/k", "navigate"},
+			{"tab", "switch subscribed/available"},
+			{"enter", "subscribe (available section)"},
+			{"d", "unsubscribe"},
+			{"e", "edit frequency"},
+			{"esc", "back to dashboard"},
+		}
+	case ScreenStatus:
+		entries = []helpEntry{
+			{"esc", "back to dashboard"},
 		}
 	}
 

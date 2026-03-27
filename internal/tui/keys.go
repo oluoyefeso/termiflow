@@ -171,3 +171,45 @@ var AskKeys = AskKeyMap{
 		key.WithHelp("j", "scroll down"),
 	),
 }
+
+// TopicsKeyMap defines keys for the topics browser screen.
+type TopicsKeyMap struct {
+	Enter    key.Binding
+	Delete   key.Binding
+	EditFreq key.Binding
+	Tab      key.Binding
+	Back     key.Binding
+	Up       key.Binding
+	Down     key.Binding
+}
+
+var TopicsKeys = TopicsKeyMap{
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "subscribe"),
+	),
+	Delete: key.NewBinding(
+		key.WithKeys("d"),
+		key.WithHelp("d", "unsubscribe"),
+	),
+	EditFreq: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "edit frequency"),
+	),
+	Tab: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "switch section"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("k", "up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("j", "down"),
+	),
+}
