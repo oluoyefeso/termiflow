@@ -2,6 +2,26 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.1.0] - 2026-03-27
+
+### Added
+- **termiflow-engine integration**: Intelligence layer (curator, scorer, summarizer, tagger, asker) now uses the `termiflow-engine` v0.1.0 library instead of inline code. Cleaner separation between CLI and AI pipeline.
+- **Retry logic for managed mode**: Managed LLM and search providers retry on 429/5xx with exponential backoff and jitter. Respects `Retry-After` headers.
+- **Offline detection**: `feed --refresh` detects DNS failures, connection refused, and timeouts. Shows "Offline — showing cached feed" instead of crashing.
+- **`ask --save` flag**: Saves question, answer, and sources to a markdown file at `~/.local/share/termiflow/saved/`. Respects `XDG_DATA_HOME`.
+- **`status` command**: Shows mode (managed/self-hosted), active subscriptions with last-fetch timestamps, database size, and config path.
+- **`upgrade` command**: Checks GitHub releases for newer versions and shows upgrade instructions.
+- **CLI version header**: Sends `X-Termiflow-Version` header on managed API calls for server-side analytics.
+
+### Changed
+- **Engine adapter pattern**: LLM and search providers implement `engine.LLMProvider` and `engine.SearchProvider` interfaces via thin adapters, decoupling CLI providers from the engine's type system.
+- **Feed item mapping**: New `feeditem_mapper.go` converts between engine `FeedItem` and CLI database model, keeping DB concerns out of the engine.
+
+### Fixed
+- **Managed provider timeout**: HTTP client now has 120s timeout. Previously had no timeout, causing `ask --no-search` to hang indefinitely.
+- **`unsubscribe` exit code**: Returns exit code 1 when topic doesn't exist (was returning 0).
+- **`capitalize()` unicode safety**: Uses `unicode.ToUpper` + `utf8.DecodeRuneInString` instead of ASCII byte arithmetic. Handles non-ASCII characters correctly.
+
 ## [0.2.0.0] - 2026-03-25
 
 ### Added
