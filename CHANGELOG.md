@@ -2,6 +2,20 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.0.0] - 2026-03-27 — Topics Browser, Status Screen & TUI Complete (Batch 6E)
+
+### Added
+- **Topics Browser screen**: Press `t` from the dashboard. Two tabbed sections: Subscriptions (with item counts, frequency, unsubscribe via `d`, edit frequency via `e`) and Available (predefined categories, subscribe via Enter with frequency picker). Tab to switch sections.
+- **Status screen**: Press `s` from the dashboard. Shows mode (managed/self-hosted), masked API key, subscription count, total items/unread, database path and size, config path. Read-only, Esc to return.
+- **User context injection in Ask**: The Ask screen now includes your termiflow state (subscriptions, unread counts, frequencies, last refresh times) in the LLM system prompt. You can ask "how many subscriptions do I have?" or "when was rust-lang last refreshed?" and get accurate answers.
+- **Frequency picker**: Subscribe and edit-frequency flows use a 3-option picker (hourly/daily/weekly) with j/k navigation and Enter to confirm.
+- **Delete confirmation**: Unsubscribing shows a y/n confirmation dialog before deleting.
+
+### Fixed
+- **Global quit during Topics dialogs**: Pressing `q` during the frequency picker or delete confirmation no longer quits the app.
+- **Subscription with DB error vanishes from UI**: Subscriptions with item-count query errors now show with 0/0 counts instead of disappearing and reappearing as "available".
+- **Dashboard cursor after deletion**: Cursor is now clamped when subscriptions are deleted, preventing broken highlight state.
+
 ## [0.2.7.0] - 2026-03-27 — Ask Screen (Batch 6D)
 
 ### Added
