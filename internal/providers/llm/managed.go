@@ -141,27 +141,44 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-	httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
-	httpReq.Header.Set("Accept", "text/event-stream")
+	var resp *http.Response
+	for attempt := 0; ; attempt++ {
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
+		if err != nil {
+			return nil, err
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+		httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
+		httpReq.Header.Set("Accept", "text/event-stream")
 
-	resp, err := streamClient.Do(httpReq) //nolint:bodyclose // closed in goroutine
-	if err != nil {
-		return nil, fmt.Errorf("managed: stream request failed: %w", err)
-	}
+		resp, err = streamClient.Do(httpReq)
+		if err != nil {
+			return nil, fmt.Errorf("managed: stream request failed: %w", err)
+		}
 
-	// Handle non-200 responses (including 429 rate limit)
-	if resp.StatusCode != http.StatusOK {
-		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusTooManyRequests {
 			retryAfter := providers.ParseRateLimitResponse(resp)
+			resp.Body.Close()
 			return nil, &providers.RateLimitError{RetryAfter: retryAfter}
 		}
+
+		if resp.StatusCode == http.StatusServiceUnavailable && attempt < providers.MaxRetries() {
+			resp.Body.Close()
+			delay := providers.RetryDelay(attempt, resp)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
+			}
+			continue
+		}
+		break
+	}
+
+	// Handle non-200 responses
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("managed: API error %s: %s", resp.Status, string(bodyBytes))
 	}
@@ -180,6 +197,7 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 		}()
 
 		scanner := bufio.NewScanner(resp.Body)
+		scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
 
