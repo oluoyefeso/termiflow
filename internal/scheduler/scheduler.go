@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	engine "github.com/oluoyefeso/termiflow-engine"
@@ -65,12 +66,18 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 	// Convert engine FeedItems to CLI FeedItems and save to database
 	items := db.FromEngineFeedItems(curatedItems)
 
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var newItems []*models.FeedItem
 	for _, item := range items {
 		item.SubscriptionID = sub.ID
 
 		// INSERT OR IGNORE handles duplicates atomically via unique index on (subscription_id, source_url)
-		if err := db.CreateFeedItem(item); err != nil {
+		if err := db.CreateFeedItemTx(tx, item); err != nil {
 			continue
 		}
 		if item.ID > 0 {
@@ -79,8 +86,11 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 	}
 
 	// Update last fetched time
-	if err := db.UpdateLastFetched(sub.ID); err != nil {
+	if err := db.UpdateLastFetchedTx(tx, sub.ID); err != nil {
 		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit refresh transaction: %w", err)
 	}
 
 	return newItems, nil
