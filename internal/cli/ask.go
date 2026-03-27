@@ -99,24 +99,45 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	}
 
 	sp.Stop()
-	fmt.Println()
 
-	// Stream output, capturing content for --save
+	// Stream output, capturing content for --save or --json
 	var savedContent strings.Builder
+	var streamErr error
 	for chunk := range chunks {
 		if chunk.Error != nil {
-			return chunk.Error
+			streamErr = chunk.Error
+			break
 		}
-		fmt.Print(chunk.Content)
-		if askSave {
+		if !jsonOutput {
+			fmt.Print(chunk.Content)
+		}
+		if askSave || jsonOutput {
 			savedContent.WriteString(chunk.Content)
 		}
 	}
+
+	// JSON output mode
+	if jsonOutput {
+		askOut := AskOutputJSON{
+			Question: question,
+			Answer:   savedContent.String(),
+			Sources:  buildSourcesJSON(sources),
+		}
+		if streamErr != nil {
+			return ui.WriteJSONError(askOut, streamErr.Error(), version)
+		}
+		return ui.WriteJSON(askOut, version)
+	}
+
+	if streamErr != nil {
+		return streamErr
+	}
+
+	fmt.Println()
 	fmt.Println()
 
 	// Print sources
 	if len(sources) > 0 {
-		fmt.Println()
 		fmt.Println(ui.SmallDivider())
 		fmt.Println(ui.BoldStyle.Render(" Sources:"))
 		for i, src := range sources {
@@ -242,6 +263,32 @@ func slugify(s string) string {
 		s = strings.TrimRight(s, "-")
 	}
 	return s
+}
+
+// JSON output types for ask command.
+
+type AskOutputJSON struct {
+	Question string       `json:"question"`
+	Answer   string       `json:"answer"`
+	Sources  []SourceJSON `json:"sources"`
+}
+
+type SourceJSON struct {
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Domain string `json:"domain"`
+}
+
+func buildSourcesJSON(sources []search.SearchResult) []SourceJSON {
+	result := make([]SourceJSON, 0, len(sources))
+	for _, src := range sources {
+		result = append(result, SourceJSON{
+			Title:  src.Title,
+			URL:    src.URL,
+			Domain: getDomain(src.URL),
+		})
+	}
+	return result
 }
 
 func formatAPIKeyError(provider string) string {

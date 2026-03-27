@@ -18,8 +18,37 @@ var statusCmd = &cobra.Command{
 	RunE:  runStatus,
 }
 
+// JSON output types for status command.
+
+type StatusOutputJSON struct {
+	Mode          string             `json:"mode"`
+	Provider      string             `json:"provider,omitempty"`
+	APIKey        string             `json:"api_key,omitempty"`
+	BaseURL       string             `json:"base_url,omitempty"`
+	Subscriptions []SubscriptionJSON `json:"subscriptions"`
+	Database      DatabaseJSON       `json:"database"`
+	ConfigPath    string             `json:"config_path"`
+}
+
+type SubscriptionJSON struct {
+	Topic       string `json:"topic"`
+	Frequency   string `json:"frequency"`
+	LastFetched string `json:"last_fetched,omitempty"`
+	ItemCount   int    `json:"item_count"`
+	UnreadCount int    `json:"unread_count"`
+}
+
+type DatabaseJSON struct {
+	Path   string `json:"path"`
+	SizeKB int64  `json:"size_kb"`
+}
+
 func runStatus(cmd *cobra.Command, args []string) error {
 	cfg := config.Get()
+
+	if jsonOutput {
+		return renderStatusJSON(cfg)
+	}
 
 	fmt.Println(ui.Header("termiflow status"))
 	fmt.Println()
@@ -28,8 +57,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if config.IsManagedMode() {
 		fmt.Print(ui.Info("Mode", "Managed"))
 		apiKey := cfg.Providers.Managed.APIKey
-		if len(apiKey) > 10 {
-			masked := apiKey[:6] + "..." + apiKey[len(apiKey)-4:]
+		if len(apiKey) > 20 {
+			masked := apiKey[:4] + "..." + apiKey[len(apiKey)-4:]
 			fmt.Print(ui.Info("API Key", masked))
 		} else if apiKey != "" {
 			fmt.Print(ui.Info("API Key", "***"))
@@ -75,4 +104,58 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	return nil
+}
+
+func renderStatusJSON(cfg *config.Config) error {
+	out := StatusOutputJSON{
+		ConfigPath: config.GetConfigPath(),
+	}
+
+	if config.IsManagedMode() {
+		out.Mode = "managed"
+		apiKey := cfg.Providers.Managed.APIKey
+		if len(apiKey) > 20 {
+			out.APIKey = apiKey[:4] + "..." + apiKey[len(apiKey)-4:]
+		} else if apiKey != "" {
+			out.APIKey = "***"
+		}
+		baseURL := cfg.Providers.Managed.BaseURL
+		if baseURL == "" {
+			baseURL = "https://api.termiflow.com"
+		}
+		out.BaseURL = baseURL
+	} else {
+		out.Mode = "self-hosted"
+		out.Provider = cfg.General.DefaultProvider
+	}
+
+	subs, err := db.GetActiveSubscriptions()
+	if err == nil {
+		out.Subscriptions = make([]SubscriptionJSON, 0, len(subs))
+		for _, sub := range subs {
+			subJSON := SubscriptionJSON{
+				Topic:     sub.Topic,
+				Frequency: sub.Frequency,
+			}
+			if sub.LastFetchedAt != nil {
+				subJSON.LastFetched = sub.LastFetchedAt.Format("2006-01-02T15:04:05Z07:00")
+			}
+			total, unread, err := db.GetSubscriptionItemCount(sub.ID)
+			if err == nil {
+				subJSON.ItemCount = total
+				subJSON.UnreadCount = unread
+			}
+			out.Subscriptions = append(out.Subscriptions, subJSON)
+		}
+	} else {
+		out.Subscriptions = []SubscriptionJSON{}
+	}
+
+	dbPath := filepath.Join(config.GetDataDir(), "termiflow.db")
+	out.Database = DatabaseJSON{Path: dbPath}
+	if info, err := os.Stat(dbPath); err == nil {
+		out.Database.SizeKB = info.Size() / 1024
+	}
+
+	return ui.WriteJSON(out, version)
 }
