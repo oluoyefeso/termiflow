@@ -2,6 +2,26 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.2.1] - 2026-03-27
+
+### Fixed
+- **Stream goroutine leak**: SSE stream goroutines in both managed and Anthropic providers now check context cancellation on every channel send. Previously, if the consumer stopped reading (ctrl+c, error), the goroutine blocked forever, leaking the goroutine and HTTP connection.
+- **Duplicate feed items**: Added unique index on `(subscription_id, source_url)` and changed `CreateFeedItem` to `INSERT OR IGNORE`. Parallel subscription refresh could previously insert the same article twice due to a check-then-insert race condition.
+- **WAL mode verification**: `PRAGMA journal_mode=WAL` result is now verified via `QueryRow` instead of `Exec`. If WAL mode fails to activate (e.g., network filesystem), the error is caught at startup instead of silently falling back to default journaling.
+- **Done chunk on connection drop**: Stream goroutines now always send a `Done` chunk via deferred send before closing the channel, even when the server drops the connection without sending `message_stop`.
+
+## [0.2.2.0] - 2026-03-27
+
+### Added
+- **Rate limit error handling**: 429 responses return a typed `RateLimitError` with a human-friendly countdown ("Rate limited. Try again in 47m.") instead of raw JSON. No useless retries against 1-hour rate windows.
+- **Real SSE streaming in managed mode**: `ask` command now streams responses in real-time instead of buffering the entire response. Uses a dedicated HTTP client with no timeout for long-running SSE connections.
+- **Parallel subscription refresh**: `feed --refresh` processes all subscriptions concurrently instead of sequentially. Context cancellation on offline detection for fast failure.
+- **SQLite WAL mode**: Database now uses Write-Ahead Logging and 5-second busy timeout, enabling safe concurrent reads/writes during parallel refresh.
+
+### Changed
+- **Shared retry logic**: Extracted `DoWithRetry()` helper in `retry.go`. Both managed providers use it instead of duplicated retry loops. 429s return immediately; only 503s are retried with exponential backoff.
+- **Rate limit warnings during refresh**: When a subscription hits a rate limit during parallel refresh, a warning is shown after the spinner completes instead of silently failing.
+
 ## [0.2.1.0] - 2026-03-27
 
 ### Added

@@ -59,6 +59,7 @@ func RunMigrations() error {
 		`CREATE INDEX IF NOT EXISTS idx_feed_items_fetched ON feed_items(fetched_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_feed_items_read ON feed_items(is_read)`,
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_items_sub_url ON feed_items(subscription_id, source_url)`,
 	}
 
 	for _, migration := range migrations {

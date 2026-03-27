@@ -69,11 +69,11 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 	for _, item := range items {
 		item.SubscriptionID = sub.ID
 
-		exists, _ := db.ItemExistsByURL(item.SourceURL)
-		if !exists {
-			if err := db.CreateFeedItem(item); err != nil {
-				continue
-			}
+		// INSERT OR IGNORE handles duplicates atomically via unique index on (subscription_id, source_url)
+		if err := db.CreateFeedItem(item); err != nil {
+			continue
+		}
+		if item.ID > 0 {
 			newItems = append(newItems, item)
 		}
 	}
