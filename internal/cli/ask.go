@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -98,12 +101,16 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	sp.Stop()
 	fmt.Println()
 
-	// Stream output
+	// Stream output, capturing content for --save
+	var savedContent strings.Builder
 	for chunk := range chunks {
 		if chunk.Error != nil {
 			return chunk.Error
 		}
 		fmt.Print(chunk.Content)
+		if askSave {
+			savedContent.WriteString(chunk.Content)
+		}
 	}
 	fmt.Println()
 
@@ -114,6 +121,16 @@ func runAsk(cmd *cobra.Command, args []string) error {
 		fmt.Println(ui.BoldStyle.Render(" Sources:"))
 		for i, src := range sources {
 			fmt.Printf("   [%d] %s - %s\n", i+1, ui.MutedStyle.Render(getDomain(src.URL)), src.Title)
+		}
+	}
+
+	// Save to file if --save flag is set
+	if askSave {
+		path, err := saveAskResult(question, savedContent.String(), sources)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\n %s Failed to save: %v\n", ui.ErrorStyle.Render("✗"), err)
+		} else {
+			fmt.Printf("\n %s %s\n", ui.SuccessStyle.Render("✓"), ui.MutedStyle.Render("Saved to "+path))
 		}
 	}
 
@@ -168,6 +185,63 @@ func getDomain(url string) string {
 		return parts[0]
 	}
 	return url
+}
+
+// saveAskResult writes the question, answer, and sources to a markdown file.
+func saveAskResult(question, answer string, sources []search.SearchResult) (string, error) {
+	saveDir := getSaveDir()
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		return "", fmt.Errorf("create save directory: %w", err)
+	}
+
+	ts := time.Now()
+	slug := slugify(question)
+	filename := fmt.Sprintf("%s-%s.md", ts.Format("20060102-150405"), slug)
+	path := filepath.Join(saveDir, filename)
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## %s\n\n", question))
+	sb.WriteString(fmt.Sprintf("*%s*\n\n", ts.Format("2006-01-02 15:04")))
+	sb.WriteString(answer)
+	sb.WriteString("\n")
+
+	if len(sources) > 0 {
+		sb.WriteString("\n### Sources\n\n")
+		for i, src := range sources {
+			sb.WriteString(fmt.Sprintf("%d. [%s](%s)\n", i+1, src.Title, src.URL))
+		}
+	}
+
+	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
+		return "", fmt.Errorf("write file: %w", err)
+	}
+	return path, nil
+}
+
+// getSaveDir returns the directory for saved ask results, respecting XDG_DATA_HOME.
+func getSaveDir() string {
+	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+		return filepath.Join(xdg, "termiflow", "saved")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "."
+	}
+	return filepath.Join(home, ".local", "share", "termiflow", "saved")
+}
+
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
+
+// slugify converts a question into a filesystem-safe slug.
+func slugify(s string) string {
+	s = strings.ToLower(s)
+	s = nonAlphanumeric.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if len(s) > 50 {
+		s = s[:50]
+		s = strings.TrimRight(s, "-")
+	}
+	return s
 }
 
 func formatAPIKeyError(provider string) string {

@@ -7,11 +7,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/oluoyefeso/termiflow/internal/providers"
 )
+
+// CLIVersion is set at build time and sent as X-Termiflow-Version header.
+var CLIVersion = "dev"
 
 // ManagedProvider calls the termiflow backend proxy instead of Anthropic directly.
 // The backend validates the termiflow API key and forwards to Anthropic.
-// Request/response schema is identical to AnthropicProvider.
 //
 //	CLI ──► POST {baseURL}/v1/messages ──► termiflow backend ──► Anthropic
 //	        Authorization: Bearer {apiKey}      x-api-key: server-side key
@@ -52,7 +57,7 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 		MaxTokens: req.MaxTokens,
 		Messages:  messages,
 		System:    systemPrompt,
-		Stream:    false, // always false — backend doesn't support SSE yet
+		Stream:    false,
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -60,17 +65,30 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, err
-	}
+	var resp *http.Response
+	for attempt := 0; ; attempt++ {
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
+		if err != nil {
+			return nil, err
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+		httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
 
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("managed: request failed: %w", err)
+		resp, err = p.client.Do(httpReq)
+		if err != nil {
+			return nil, fmt.Errorf("managed: request failed: %w", err)
+		}
+		if !providers.IsRetryable(resp.StatusCode) || attempt >= providers.MaxRetries() {
+			break
+		}
+		resp.Body.Close()
+		delay := providers.RetryDelay(attempt, resp)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
 	}
 	defer resp.Body.Close()
 
@@ -81,7 +99,7 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 
 	var anthropicResp anthropicResponse
 	if err := json.NewDecoder(resp.Body).Decode(&anthropicResp); err != nil {
-		return nil, fmt.Errorf("managed: failed to decode response: %w", err)
+		return nil, fmt.Errorf("managed: unexpected response from Termiflow API — try again or check api.termiflow.com/health")
 	}
 
 	var content string
