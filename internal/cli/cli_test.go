@@ -295,3 +295,67 @@ func TestNoColorFlag(t *testing.T) {
 		t.Error("noColor flag should be settable to true")
 	}
 }
+
+func TestCapitalize(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"daily", "Daily"},
+		{"hourly", "Hourly"},
+		{"", ""},
+		{"Daily", "Daily"},
+		{"WEEKLY", "WEEKLY"},
+		{"über", "Über"},
+	}
+	for _, tt := range tests {
+		got := capitalize(tt.input)
+		if got != tt.want {
+			t.Errorf("capitalize(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		input  string
+		maxLen int
+		want   string
+	}{
+		{"short", 10, "short"},
+		{"exactly10!", 10, "exactly10!"},
+		{"this is a longer string", 10, "this is..."},
+		{"", 5, ""},
+	}
+	for _, tt := range tests {
+		got := truncate(tt.input, tt.maxLen)
+		if got != tt.want {
+			t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
+		}
+	}
+}
+
+func TestIsNewerVersion(t *testing.T) {
+	tests := []struct {
+		candidate string
+		current   string
+		want      bool
+	}{
+		{"0.10.0", "0.9.0", true},
+		{"0.2.1", "0.2.0", true},
+		{"1.0.0", "0.99.99", true},
+		{"0.2.0", "0.2.0", false},
+		{"0.1.0", "0.2.0", false},
+		{"0.2.0.1", "0.2.0.0", true},
+		{"0.2.0.0", "0.2.0.1", false},
+		{"0.3.0", "0.3.0.0", false},
+		{"2.0.0", "10.0.0", false},
+		{"10.0.0", "2.0.0", true},
+	}
+	for _, tt := range tests {
+		got := isNewerVersion(tt.candidate, tt.current)
+		if got != tt.want {
+			t.Errorf("isNewerVersion(%q, %q) = %v, want %v", tt.candidate, tt.current, got, tt.want)
+		}
+	}
+}

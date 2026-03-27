@@ -30,7 +30,7 @@ func NewManagedSearchProvider(apiKey, baseURL string) *ManagedSearchProvider {
 	return &ManagedSearchProvider{
 		apiKey:  apiKey,
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client:  &http.Client{Timeout: 120 * time.Second},
 	}
 }
 
