@@ -7,12 +7,15 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/providers"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/internal/scheduler"
@@ -282,24 +285,49 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 	sp := ui.NewSpinner(fmt.Sprintf("Fetching updates for %d subscription(s)...", len(subs)))
 	sp.Start()
 
-	ctx := context.Background()
-	totalNewItems := 0
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	offlineDetected := false
+	var (
+		wg            sync.WaitGroup
+		mu            sync.Mutex
+		totalNewItems int
+		offline       atomic.Bool
+		rateLimited   []string // topic names that hit rate limits
+	)
+
 	for _, sub := range subs {
-		items, err := sched.RefreshSubscription(ctx, sub)
-		if err != nil {
-			if isOfflineError(err) {
-				offlineDetected = true
-				break
+		wg.Add(1)
+		go func(sub *models.Subscription) {
+			defer wg.Done()
+
+			items, err := sched.RefreshSubscription(ctx, sub)
+			if err != nil {
+				if isOfflineError(err) {
+					offline.Store(true)
+					cancel()
+					return
+				}
+				var rle *providers.RateLimitError
+				if errors.As(err, &rle) {
+					mu.Lock()
+					rateLimited = append(rateLimited, sub.Topic)
+					mu.Unlock()
+					return
+				}
+				// Non-fatal: continue with other subscriptions
+				return
 			}
-			// Log error but continue with other subscriptions
-			continue
-		}
-		totalNewItems += len(items)
+
+			mu.Lock()
+			totalNewItems += len(items)
+			mu.Unlock()
+		}(sub)
 	}
 
-	if offlineDetected {
+	wg.Wait()
+
+	if offline.Load() {
 		sp.Stop()
 		fmt.Println()
 		fmt.Println(ui.Warning("Offline — showing cached feed."))
@@ -310,6 +338,11 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 		sp.Success(fmt.Sprintf("Fetched %d new item(s)", totalNewItems))
 	} else {
 		sp.Success("No new items found")
+	}
+
+	// Show rate limit warnings after spinner stops (avoids garbled output)
+	for _, topic := range rateLimited {
+		fmt.Printf("  %s Rate limited on %s — try again later.\n", ui.ErrorStyle.Render("!"), topic)
 	}
 
 	return nil
