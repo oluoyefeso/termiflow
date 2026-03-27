@@ -70,7 +70,7 @@ func MaxRetries() int {
 // Returns immediately with *RateLimitError on 429 (no retry).
 // Retries 503 up to maxRetries times with exponential backoff.
 // The caller is responsible for closing the returned response body.
-func DoWithRetry(ctx context.Context, fn func() (*http.Response, error)) (*http.Response, error) {
+func DoWithRetry(ctx context.Context, fn func() (*http.Response, error)) (*http.Response, error) { //nolint:bodyclose // caller closes on success; 429/503 paths close explicitly
 	var resp *http.Response
 	var err error
 
