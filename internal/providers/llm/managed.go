@@ -152,7 +152,7 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 		httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
 		httpReq.Header.Set("Accept", "text/event-stream")
 
-		resp, err = streamClient.Do(httpReq)
+		resp, err = streamClient.Do(httpReq) //nolint:bodyclose // closed in goroutine, 429 path, or 503 retry path
 		if err != nil {
 			return nil, fmt.Errorf("managed: stream request failed: %w", err)
 		}
