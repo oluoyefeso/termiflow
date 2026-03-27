@@ -210,6 +210,29 @@ func Footer(items, topics int, lastUpdated string) string {
 	return fmt.Sprintf("\n%s\n%s\n", line, stats)
 }
 
+// Banner renders a notification banner with type-based coloring.
+// Types: info=cyan, warning=amber, update=blue, breaking=red, version=blue.
+func Banner(bannerType string, message string) string {
+	var style lipgloss.Style
+	icon := "▲"
+
+	switch bannerType {
+	case "info":
+		style = CyanStyle
+	case "warning":
+		style = WarningStyle
+	case "update", "version":
+		style = BlueStyle
+	case "breaking":
+		style = ErrorStyle
+		icon = "!"
+	default:
+		style = MutedStyle
+	}
+
+	return fmt.Sprintf(" %s %s\n", style.Render(icon), style.Render(message))
+}
+
 func NoColor(enable bool) {
 	if enable {
 		lipgloss.SetColorProfile(termenv.Ascii)
