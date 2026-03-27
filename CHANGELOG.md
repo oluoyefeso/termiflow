@@ -2,6 +2,19 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.4.0] - 2026-03-27 — TUI Scaffold (Batch 6A)
+
+### Added
+- **Bubble Tea TUI**: Running bare `termiflow` now launches a full-screen interactive TUI (alt-screen mode) instead of printing a static dashboard to stdout. Existing CLI commands (`termiflow feed`, `termiflow ask`, etc.) are unchanged.
+- **Dashboard screen**: Subscription list with j/k navigation, unread counts per topic, zero-subscription getting-started guide, and status bar with keybinding hints.
+- **Help overlay**: Press `?` to see all keybindings for the current screen.
+- **Notification banners in TUI**: Announcement and version banners render as a top bar inside the TUI, reusing the existing `internal/notifications/` system.
+- **TTY detection**: TUI only launches on interactive terminals. Pipes, `--json`, and `--quiet` fall back to the original stdout dashboard. Tests pass without a TTY.
+
+### Changed
+- **Go version bumped to 1.24**: Required by `charmbracelet/bubbletea` v1.3.10. CI workflows (ci.yml, release.yml) updated from Go 1.22/1.23 to 1.24.
+- **lipgloss upgraded to v1.1.0**: From v0.9.1. Required by bubbletea. All existing code compiles and works with the new version.
+
 ## [0.2.3.0] - 2026-03-27 — CLI Polish (Batch 3)
 
 ### Added
