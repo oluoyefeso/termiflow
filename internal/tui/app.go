@@ -136,11 +136,6 @@ func renderBanner(banner BannerMsg) string {
 func (m AppModel) renderHelp() string {
 	var b strings.Builder
 
-	w := m.width
-	if w == 0 {
-		w = 69
-	}
-
 	b.WriteString("\n")
 	b.WriteString(StyleAccent.Render("  KEYBINDINGS"))
 	b.WriteString("\n\n")
