@@ -8,15 +8,15 @@ import (
 
 // Bloomberg terminal palette — matches internal/ui/colors.go
 var (
-	ColorPrimary = lipgloss.Color("214") // Amber
+	ColorPrimary   = lipgloss.Color("214") // Amber
 	ColorSecondary = lipgloss.Color("244") // Light gray
-	ColorSuccess = lipgloss.Color("82")  // Green
-	ColorWarning = lipgloss.Color("208") // Orange
-	ColorError   = lipgloss.Color("196") // Red
-	ColorMuted   = lipgloss.Color("240") // Dark gray
-	ColorAccent  = lipgloss.Color("220") // Bright amber
-	ColorCyan    = lipgloss.Color("51")  // Info banners
-	ColorBlue    = lipgloss.Color("33")  // Update banners
+	ColorSuccess   = lipgloss.Color("82")  // Green
+	ColorWarning   = lipgloss.Color("208") // Orange
+	ColorError     = lipgloss.Color("196") // Red
+	ColorMuted     = lipgloss.Color("240") // Dark gray
+	ColorAccent    = lipgloss.Color("220") // Bright amber
+	ColorCyan      = lipgloss.Color("51")  // Info banners
+	ColorBlue      = lipgloss.Color("33")  // Update banners
 
 	// Text styles
 	StyleTitle = lipgloss.NewStyle().
