@@ -18,9 +18,9 @@ type DashboardOutputJSON struct {
 }
 
 type DashboardSubJSON struct {
-	Topic   string `json:"topic"`
-	Unread  int    `json:"unread"`
-	Total   int    `json:"total"`
+	Topic  string `json:"topic"`
+	Unread int    `json:"unread"`
+	Total  int    `json:"total"`
 }
 
 func runDashboard(cmd *cobra.Command) error {

@@ -379,14 +379,14 @@ func isOfflineError(err error) bool {
 // JSON output types for feed command.
 
 type FeedItemJSON struct {
-	Title     string   `json:"title"`
-	Source    string   `json:"source"`
-	URL       string   `json:"url"`
-	Summary   string   `json:"summary"`
-	Tags      []string `json:"tags"`
-	TimeAgo   string   `json:"time_ago"`
-	IsRead    bool     `json:"is_read"`
-	Score     float64  `json:"relevance_score"`
+	Title   string   `json:"title"`
+	Source  string   `json:"source"`
+	URL     string   `json:"url"`
+	Summary string   `json:"summary"`
+	Tags    []string `json:"tags"`
+	TimeAgo string   `json:"time_ago"`
+	IsRead  bool     `json:"is_read"`
+	Score   float64  `json:"relevance_score"`
 }
 
 type FeedTopicJSON struct {
