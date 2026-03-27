@@ -139,3 +139,35 @@ var DetailKeys = DetailKeyMap{
 		key.WithHelp("j", "scroll down"),
 	),
 }
+
+// AskKeyMap defines keys for the ask screen.
+type AskKeyMap struct {
+	Submit key.Binding
+	Back   key.Binding
+	Save   key.Binding
+	Up     key.Binding
+	Down   key.Binding
+}
+
+var AskKeys = AskKeyMap{
+	Submit: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "submit"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Save: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "save"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("k", "scroll up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("j", "scroll down"),
+	),
+}

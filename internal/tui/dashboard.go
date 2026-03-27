@@ -161,6 +161,10 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.refreshing = true
 				return m, refreshAllFeeds()
 			}
+		case key.Matches(msg, DashboardKeys.Ask):
+			return m, func() tea.Msg {
+				return SwitchScreenMsg{Screen: ScreenAsk}
+			}
 		}
 
 	case tea.WindowSizeMsg:
