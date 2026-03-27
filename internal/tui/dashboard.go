@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -9,9 +10,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/scheduler"
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
 )
+
+const autoRefreshInterval = 30 * time.Minute
 
 // DashboardModel is the home screen showing subscriptions and unread counts.
 type DashboardModel struct {
@@ -22,6 +27,9 @@ type DashboardModel struct {
 	height      int
 	loading     bool
 	err         error
+	refreshing  bool
+	lastRefresh time.Time
+	refreshErr  string
 }
 
 func NewDashboardModel() DashboardModel {
@@ -51,8 +59,48 @@ func loadSubscriptions() tea.Msg {
 	return SubscriptionsLoadedMsg{Subs: infos}
 }
 
+// refreshAllFeeds creates a tea.Cmd that refreshes all subscriptions sequentially,
+// sending a FeedRefreshedMsg per topic and AllRefreshDoneMsg when done.
+func refreshAllFeeds() tea.Cmd {
+	return func() tea.Msg {
+		cfg := config.Get()
+		sched, err := scheduler.NewFromConfig(cfg, cfg.General.DefaultProvider)
+		if err != nil {
+			return AllRefreshDoneMsg{Err: err}
+		}
+
+		subs, err := db.GetActiveSubscriptions()
+		if err != nil {
+			return AllRefreshDoneMsg{Err: err}
+		}
+
+		totalNew := 0
+		errCount := 0
+		for _, sub := range subs {
+			newItems, err := sched.RefreshSubscription(context.Background(), sub)
+			if err != nil {
+				errCount++
+				continue
+			}
+			totalNew += len(newItems)
+		}
+
+		return AllRefreshDoneMsg{TotalNew: totalNew, Errors: errCount}
+	}
+}
+
+// autoRefreshTick sends a tick message for auto-refresh.
+func autoRefreshTick() tea.Cmd {
+	return tea.Tick(autoRefreshInterval, func(t time.Time) tea.Msg {
+		return autoRefreshTickMsg{}
+	})
+}
+
+// autoRefreshTickMsg is the internal tick message for auto-refresh.
+type autoRefreshTickMsg struct{}
+
 func (m DashboardModel) Init() tea.Cmd {
-	return loadSubscriptions
+	return tea.Batch(loadSubscriptions, autoRefreshTick())
 }
 
 func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
@@ -69,6 +117,25 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.totalUnread += s.Unread
 		}
 		return m, nil
+
+	case AllRefreshDoneMsg:
+		m.refreshing = false
+		m.lastRefresh = time.Now()
+		m.refreshErr = ""
+		if msg.Err != nil {
+			m.refreshErr = fmt.Sprintf("Refresh failed: %v", msg.Err)
+		} else if msg.Errors > 0 {
+			m.refreshErr = fmt.Sprintf("%d topic(s) failed to refresh", msg.Errors)
+		}
+		// Reload subscription counts from DB to reflect new items
+		return m, loadSubscriptions
+
+	case autoRefreshTickMsg:
+		if !m.refreshing && len(m.subs) > 0 {
+			m.refreshing = true
+			return m, tea.Batch(refreshAllFeeds(), autoRefreshTick())
+		}
+		return m, autoRefreshTick()
 
 	case tea.KeyMsg:
 		switch {
@@ -90,8 +157,10 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, DashboardKeys.Refresh):
-			m.loading = true
-			return m, loadSubscriptions
+			if !m.refreshing {
+				m.refreshing = true
+				return m, refreshAllFeeds()
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -114,7 +183,7 @@ func (m DashboardModel) View() string {
 	b.WriteString(m.renderHeader(w))
 	b.WriteString("\n\n")
 
-	if m.loading {
+	if m.loading && !m.refreshing {
 		b.WriteString(StyleMuted.Render("  Loading..."))
 		b.WriteString("\n")
 		return b.String()
@@ -143,6 +212,21 @@ func (m DashboardModel) View() string {
 			StyleMuted.Render(fmt.Sprintf("─── %d total unread", m.totalUnread)),
 		))
 	}
+
+	// Refresh status
+	if m.refreshing {
+		b.WriteString(fmt.Sprintf("\n  %s\n", StyleCyan.Render("⟳ Refreshing feeds...")))
+	} else if m.refreshErr != "" {
+		b.WriteString(fmt.Sprintf("\n  %s\n", StyleWarning.Render("! "+m.refreshErr)))
+	} else if !m.lastRefresh.IsZero() {
+		ago := time.Since(m.lastRefresh)
+		label := "just now"
+		if ago > time.Minute {
+			label = fmt.Sprintf("%dm ago", int(ago.Minutes()))
+		}
+		b.WriteString(fmt.Sprintf("\n  %s\n", StyleMuted.Render("Last refreshed "+label)))
+	}
+
 	b.WriteString("\n")
 
 	// Pad to push status bar to bottom

@@ -38,11 +38,18 @@ type SubInfo struct {
 	Unread int
 }
 
-// FeedRefreshedMsg signals that a feed refresh completed.
+// FeedRefreshedMsg signals that one subscription's refresh completed.
 type FeedRefreshedMsg struct {
 	Topic    string
 	NewItems int
 	Err      error
+}
+
+// AllRefreshDoneMsg signals that all subscriptions have been refreshed.
+type AllRefreshDoneMsg struct {
+	TotalNew int
+	Errors   int   // count of per-topic errors
+	Err      error // fatal error (provider init, DB)
 }
 
 // BannerMsg carries a notification banner to display.

@@ -16,8 +16,6 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/providers"
-	"github.com/oluoyefeso/termiflow/internal/providers/llm"
-	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/internal/scheduler"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 	"github.com/oluoyefeso/termiflow/pkg/models"
@@ -266,25 +264,11 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 		}
 	}
 
-	// Initialize LLM provider
-	providerName := getProvider()
-	llmProvider, err := llm.GetProvider(providerName, cfg)
+	// Create scheduler with LLM + search providers
+	sched, err := scheduler.NewFromConfig(cfg, getProvider())
 	if err != nil {
-		return fmt.Errorf("failed to initialize LLM provider: %w", err)
+		return fmt.Errorf("failed to initialize providers: %w", err)
 	}
-
-	if !llmProvider.Available() {
-		return fmt.Errorf("LLM provider '%s' not configured - run 'termiflow config init'", providerName)
-	}
-
-	// Initialize search provider
-	searchProvider, err := search.GetSearchProvider(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to initialize search provider: %w", err)
-	}
-
-	// Create scheduler
-	sched := scheduler.New(llmProvider, searchProvider)
 
 	// Show spinner
 	sp := ui.NewSpinner(fmt.Sprintf("Fetching updates for %d subscription(s)...", len(subs)))
