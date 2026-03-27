@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"time"
@@ -283,13 +285,25 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 	ctx := context.Background()
 	totalNewItems := 0
 
+	offlineDetected := false
 	for _, sub := range subs {
 		items, err := sched.RefreshSubscription(ctx, sub)
 		if err != nil {
+			if isOfflineError(err) {
+				offlineDetected = true
+				break
+			}
 			// Log error but continue with other subscriptions
 			continue
 		}
 		totalNewItems += len(items)
+	}
+
+	if offlineDetected {
+		sp.Stop()
+		fmt.Println()
+		fmt.Println(ui.Warning("Offline — showing cached feed."))
+		return nil
 	}
 
 	if totalNewItems > 0 {
@@ -299,4 +313,24 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 	}
 
 	return nil
+}
+
+// isOfflineError detects network errors indicating the user is offline.
+func isOfflineError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return true
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	return false
 }

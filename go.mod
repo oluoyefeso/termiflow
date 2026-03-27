@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/mmcdole/gofeed v1.2.1
 	github.com/muesli/termenv v0.15.2
+	github.com/oluoyefeso/termiflow-engine v0.1.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	modernc.org/sqlite v1.28.0
