@@ -1,0 +1,40 @@
+#!/bin/sh
+# Pre-push hook: catches gofmt and test failures before pushing to CI.
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+echo "Running pre-push checks..."
+
+# 1. gofmt check
+UNFORMATTED=$(gofmt -l . 2>/dev/null | grep -v vendor || true)
+if [ -n "$UNFORMATTED" ]; then
+  echo ""
+  echo "PUSH BLOCKED: gofmt formatting errors"
+  echo ""
+  echo "Unformatted files:"
+  echo "$UNFORMATTED"
+  echo ""
+  echo "Fix with: gofmt -w \$(gofmt -l .)"
+  exit 1
+fi
+
+# 2. go vet
+echo "  go vet..."
+if ! go vet ./... 2>/dev/null; then
+  echo ""
+  echo "PUSH BLOCKED: go vet found issues"
+  exit 1
+fi
+
+# 3. go test (race detector)
+echo "  go test -race..."
+if ! go test -race ./... > /dev/null 2>&1; then
+  echo ""
+  echo "PUSH BLOCKED: tests failed"
+  echo ""
+  echo "Run 'go test -race ./...' to see details."
+  exit 1
+fi
+
+echo "All pre-push checks passed."

@@ -346,7 +346,7 @@ func TestIsNewerVersion(t *testing.T) {
 		{"1.0.0", "0.99.99", true},
 		{"0.2.0", "0.2.0", false},
 		{"0.1.0", "0.2.0", false},
-		{"v1.0.0", "0.9.0", true},  // v-prefix handled by Masterminds/semver
+		{"v1.0.0", "0.9.0", true},   // v-prefix handled by Masterminds/semver
 		{"invalid", "0.2.0", false}, // invalid version returns false
 		{"2.0.0", "10.0.0", false},
 		{"10.0.0", "2.0.0", true},
