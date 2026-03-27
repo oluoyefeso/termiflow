@@ -88,6 +88,22 @@ termiflow topics --subscribed         # Your subscriptions
 termiflow unsubscribe silicon-chips   # Remove subscription
 ```
 
+### JSON Output for Scripting
+
+```bash
+termiflow feed --json | jq '.data.topics[].items[].title'
+termiflow status --json | jq '.meta.version'
+termiflow ask "what is WASM?" --json --no-search
+termiflow changelog --json
+```
+
+### Release Notes
+
+```bash
+termiflow changelog                   # Latest 3 releases
+termiflow changelog --all             # Full release history
+```
+
 ## Configuration
 
 Config file location: `~/.config/termiflow/config.toml`

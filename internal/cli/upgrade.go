@@ -1,11 +1,8 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
@@ -21,50 +18,27 @@ var upgradeCmd = &cobra.Command{
 	RunE:  runUpgrade,
 }
 
-type githubRelease struct {
-	TagName string `json:"tag_name"`
-	HTMLURL string `json:"html_url"`
-	Body    string `json:"body"`
-}
-
 func runUpgrade(cmd *cobra.Command, args []string) error {
 	sp := ui.NewSpinner("Checking for updates...")
 	sp.Start()
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://api.github.com/repos/oluoyefeso/termiflow/releases/latest")
+	release, err := fetchLatestRelease()
 	if err != nil {
 		sp.Stop()
 		// Try cache fallback
 		if upgradeFromCache() {
 			return nil
 		}
-		return fmt.Errorf("could not reach GitHub: %w", err)
+		return err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
+	if release == nil {
 		sp.Stop()
 		fmt.Println()
 		fmt.Print(ui.Warning("No releases published yet"))
 		fmt.Printf("  You're running version: %s\n", ui.MutedStyle.Render(version))
 		fmt.Println()
 		return nil
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		sp.Stop()
-		// Try cache fallback
-		if upgradeFromCache() {
-			return nil
-		}
-		return fmt.Errorf("GitHub API returned %s", resp.Status)
-	}
-
-	var release githubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		sp.Error("Failed to parse release info")
-		return err
 	}
 
 	current := strings.TrimPrefix(version, "v")
