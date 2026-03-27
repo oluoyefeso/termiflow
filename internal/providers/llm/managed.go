@@ -33,7 +33,7 @@ func NewManagedProvider(apiKey, baseURL string) *ManagedProvider {
 	return &ManagedProvider{
 		apiKey:  apiKey,
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client:  &http.Client{Timeout: 120 * time.Second},
 	}
 }
 
