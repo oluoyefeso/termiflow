@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,7 +68,7 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	}
 
 	latest := strings.TrimPrefix(release.TagName, "v")
-	if current >= latest {
+	if !isNewerVersion(latest, current) {
 		sp.Success(fmt.Sprintf("You're on the latest version (%s)", release.TagName))
 		return nil
 	}
@@ -87,4 +88,33 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	return nil
+}
+
+// isNewerVersion returns true if candidate is newer than current.
+// Compares dot-separated numeric segments (e.g., "0.10.0" > "0.9.0").
+func isNewerVersion(candidate, current string) bool {
+	cParts := strings.Split(candidate, ".")
+	curParts := strings.Split(current, ".")
+
+	maxLen := len(cParts)
+	if len(curParts) > maxLen {
+		maxLen = len(curParts)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var c, cur int
+		if i < len(cParts) {
+			c, _ = strconv.Atoi(cParts[i])
+		}
+		if i < len(curParts) {
+			cur, _ = strconv.Atoi(curParts[i])
+		}
+		if c > cur {
+			return true
+		}
+		if c < cur {
+			return false
+		}
+	}
+	return false
 }

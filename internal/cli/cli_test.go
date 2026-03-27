@@ -334,3 +334,28 @@ func TestTruncate(t *testing.T) {
 		}
 	}
 }
+
+func TestIsNewerVersion(t *testing.T) {
+	tests := []struct {
+		candidate string
+		current   string
+		want      bool
+	}{
+		{"0.10.0", "0.9.0", true},
+		{"0.2.1", "0.2.0", true},
+		{"1.0.0", "0.99.99", true},
+		{"0.2.0", "0.2.0", false},
+		{"0.1.0", "0.2.0", false},
+		{"0.2.0.1", "0.2.0.0", true},
+		{"0.2.0.0", "0.2.0.1", false},
+		{"0.3.0", "0.3.0.0", false},
+		{"2.0.0", "10.0.0", false},
+		{"10.0.0", "2.0.0", true},
+	}
+	for _, tt := range tests {
+		got := isNewerVersion(tt.candidate, tt.current)
+		if got != tt.want {
+			t.Errorf("isNewerVersion(%q, %q) = %v, want %v", tt.candidate, tt.current, got, tt.want)
+		}
+	}
+}
