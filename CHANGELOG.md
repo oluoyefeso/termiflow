@@ -2,6 +2,18 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.2.0] - 2026-03-27
+
+### Added
+- **Rate limit error handling**: 429 responses return a typed `RateLimitError` with a human-friendly countdown ("Rate limited. Try again in 47m.") instead of raw JSON. No useless retries against 1-hour rate windows.
+- **Real SSE streaming in managed mode**: `ask` command now streams responses in real-time instead of buffering the entire response. Uses a dedicated HTTP client with no timeout for long-running SSE connections.
+- **Parallel subscription refresh**: `feed --refresh` processes all subscriptions concurrently instead of sequentially. Context cancellation on offline detection for fast failure.
+- **SQLite WAL mode**: Database now uses Write-Ahead Logging and 5-second busy timeout, enabling safe concurrent reads/writes during parallel refresh.
+
+### Changed
+- **Shared retry logic**: Extracted `DoWithRetry()` helper in `retry.go`. Both managed providers use it instead of duplicated retry loops. 429s return immediately; only 503s are retried with exponential backoff.
+- **Rate limit warnings during refresh**: When a subscription hits a rate limit during parallel refresh, a warning is shown after the spinner completes instead of silently failing.
+
 ## [0.2.1.0] - 2026-03-27
 
 ### Added
