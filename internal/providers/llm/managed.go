@@ -67,7 +67,7 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 		return nil, err
 	}
 
-	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) {
+	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) { //nolint:bodyclose // DoWithRetry manages body lifecycle
 		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err

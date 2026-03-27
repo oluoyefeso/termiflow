@@ -63,7 +63,7 @@ func (p *ManagedSearchProvider) Search(ctx context.Context, req SearchRequest) (
 		return nil, err
 	}
 
-	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) {
+	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) { //nolint:bodyclose // DoWithRetry manages body lifecycle
 		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/search", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err
