@@ -40,8 +40,8 @@ var (
 			Bold(true)
 
 	// Banner colors
-	CyanColor = lipgloss.Color("51")  // Cyan (info banners)
-	BlueColor = lipgloss.Color("33")  // Blue (update/version banners)
+	CyanColor = lipgloss.Color("51") // Cyan (info banners)
+	BlueColor = lipgloss.Color("33") // Blue (update/version banners)
 
 	CyanStyle = lipgloss.NewStyle().
 			Foreground(CyanColor)
