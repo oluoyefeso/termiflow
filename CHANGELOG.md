@@ -2,6 +2,14 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.2.2.1] - 2026-03-27
+
+### Fixed
+- **Stream goroutine leak**: SSE stream goroutines in both managed and Anthropic providers now check context cancellation on every channel send. Previously, if the consumer stopped reading (ctrl+c, error), the goroutine blocked forever, leaking the goroutine and HTTP connection.
+- **Duplicate feed items**: Added unique index on `(subscription_id, source_url)` and changed `CreateFeedItem` to `INSERT OR IGNORE`. Parallel subscription refresh could previously insert the same article twice due to a check-then-insert race condition.
+- **WAL mode verification**: `PRAGMA journal_mode=WAL` result is now verified via `QueryRow` instead of `Exec`. If WAL mode fails to activate (e.g., network filesystem), the error is caught at startup instead of silently falling back to default journaling.
+- **Done chunk on connection drop**: Stream goroutines now always send a `Done` chunk via deferred send before closing the channel, even when the server drops the connection without sending `message_stop`.
+
 ## [0.2.2.0] - 2026-03-27
 
 ### Added
