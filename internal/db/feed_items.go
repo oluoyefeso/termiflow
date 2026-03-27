@@ -9,7 +9,7 @@ import (
 
 func CreateFeedItem(item *models.FeedItem) error {
 	result, err := db.Exec(`
-		INSERT INTO feed_items (subscription_id, title, summary, content, source_name, source_url, published_at, relevance_score, tags)
+		INSERT OR IGNORE INTO feed_items (subscription_id, title, summary, content, source_name, source_url, published_at, relevance_score, tags)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, item.SubscriptionID, item.Title, item.Summary, item.Content, item.SourceName, item.SourceURL, item.PublishedAt, item.RelevanceScore, item.GetTagsJSON())
 
