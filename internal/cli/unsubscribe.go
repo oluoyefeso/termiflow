@@ -47,7 +47,8 @@ func runUnsubscribe(cmd *cobra.Command, args []string) error {
 	sub, err := db.GetSubscription(topic)
 	if err != nil || sub == nil {
 		fmt.Print(ui.Error(fmt.Sprintf("Not subscribed to %s", topic)))
-		return nil
+		cmd.SilenceUsage = true
+		return fmt.Errorf("not subscribed to %s", topic)
 	}
 
 	// Delete subscription

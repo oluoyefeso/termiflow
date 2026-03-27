@@ -1,18 +1,14 @@
 # TODOS
 
-## High Priority (ship before public key issuance)
-
-### Rate limiting per API key
-**What:** Per-key rate limiting in the managed backend (100 req/hr sliding window).
-**Why:** Prevents a single leaked `tf_xxx` key from running up the Anthropic bill. Without it, one bad actor can drain the server-side Anthropic quota.
-**Pros:** Cheap to implement; protects the operator budget before any public-facing use.
-**Cons:** In-memory only (resets on restart) — acceptable for single-server MVP, not for multi-instance.
-**Context:** Backend proxy in `internal/api/proxy_llm.go`. Middleware chain: auth → rate_limit → proxy. Use `sync.Map` + sliding window counter per key. No Redis needed. Add `X-RateLimit-Remaining` response header for transparency.
-**Depends on:** Managed backend shipping first.
-
----
-
 ## Post-MVP (UX improvements)
+
+### CLI rate limit error handling
+**What:** Parse 429 responses from the managed API and show user-friendly "Rate limited. Try again in Xm." instead of raw HTTP error.
+**Why:** When users hit the 100 req/hr limit during `feed --refresh` (which makes many LLM calls), they see a cryptic "API error 429" message. The `Retry-After` header is available but the CLI doesn't use it.
+**Pros:** Better UX for managed mode users hitting limits. Tells them exactly when to retry.
+**Cons:** Minor effort. Need to parse Retry-After header in the managed provider's error handling path.
+**Context:** `internal/providers/llm/managed.go` and `internal/providers/search/managed.go`. Check `resp.StatusCode == 429`, parse `Retry-After` header, return a typed `RateLimitError` that the CLI can detect and format nicely. The retry logic in `internal/providers/retry.go` caps at 30s backoff which is too short for the 1-hour rate limit window — should detect termiflow 429s and not retry them.
+**Depends on:** Nothing blocking.
 
 ### SSE streaming pass-through in backend proxy
 **What:** Backend proxy forwards Anthropic SSE chunks verbatim to the CLI instead of buffering.
@@ -29,3 +25,11 @@
 **Cons:** Adds goroutines + sync complexity to `internal/intelligence/curator.go`. Must bound concurrency (semaphore, max 5) to avoid overwhelming the managed API.
 **Context:** `internal/intelligence/curator.go`, `CurateResults()`. Use `errgroup.Group` (golang.org/x/sync/errgroup) with semaphore: `sem := semaphore.NewWeighted(5)`. Each article processes in its own goroutine. Collect results into a channel. Existing test coverage in curator should be extended with concurrency assertions.
 **Depends on:** Nothing blocking.
+
+---
+
+## Done
+
+### Rate limiting per API key
+**Shipped in:** `d2ece1d` (implementation) + eng review fixes (middleware order, cleanup race, panic recovery, JSON 429 response, server timeout, test coverage)
+**What:** Per-key rate limiting in the managed backend (100 req/hr sliding window). `sync.Map` + sliding window, auth → rate_limit → proxy middleware chain, `X-RateLimit-*` headers, 429 with `Retry-After`. 13 tests covering core logic, concurrency, middleware integration, cleanup, and edge cases.
