@@ -443,9 +443,10 @@ func renderFeedJSON(items []*models.FeedItem, subs []*models.Subscription, group
 		topics = []FeedTopicJSON{}
 	}
 
-	return ui.WriteJSON(FeedOutputJSON{
+	out := FeedOutputJSON{
 		Topics: topics,
 		Total:  total,
 		Unread: unread,
-	}, version)
+	}
+	return ui.WriteJSON(out, version)
 }
