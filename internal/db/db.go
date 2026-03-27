@@ -33,6 +33,16 @@ func Open(dbPath string) error {
 		return fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
+	// Enable WAL mode for concurrent read/write support (needed for parallel subscription refresh)
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+
+	// Set busy timeout to 5 seconds (avoids "database is locked" under concurrent writes)
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		return fmt.Errorf("failed to set busy timeout: %w", err)
+	}
+
 	// Run migrations
 	if err := RunMigrations(); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
