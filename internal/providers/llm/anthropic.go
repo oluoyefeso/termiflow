@@ -80,7 +80,7 @@ func (p *AnthropicProvider) Complete(ctx context.Context, req CompletionRequest)
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Anthropic API error: %s - %s", resp.Status, string(bodyBytes))
+		return nil, fmt.Errorf("anthropic API error: %s - %s", resp.Status, string(bodyBytes))
 	}
 
 	var anthropicResp anthropicResponse
@@ -149,7 +149,7 @@ func (p *AnthropicProvider) Stream(ctx context.Context, req CompletionRequest) (
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return nil, fmt.Errorf("Anthropic API error: %s - %s", resp.Status, string(bodyBytes))
+		return nil, fmt.Errorf("anthropic API error: %s - %s", resp.Status, string(bodyBytes))
 	}
 
 	chunks := make(chan StreamChunk)
