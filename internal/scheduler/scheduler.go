@@ -19,6 +19,7 @@ import (
 type Scheduler struct {
 	llmProvider    llm.Provider
 	searchProvider search.Provider
+	feedFetcher    search.FeedFetcher
 	rssProvider    *search.RSSProvider
 	scraper        *search.Scraper
 	curator        *engine.Curator
@@ -37,14 +38,28 @@ func NewFromConfig(cfg *config.Config, providerName string) (*Scheduler, error) 
 		return nil, err
 	}
 
-	return New(llmProvider, searchProvider), nil
+	var feedFetcher search.FeedFetcher
+	if config.IsManagedMode() {
+		feedFetcher = search.NewManagedFeedFetcher(cfg.Providers.Managed.APIKey, cfg.Providers.Managed.BaseURL)
+	}
+
+	return NewWithFeedFetcher(llmProvider, searchProvider, feedFetcher), nil
 }
 
 func New(llmProvider llm.Provider, searchProvider search.Provider) *Scheduler {
+	return NewWithFeedFetcher(llmProvider, searchProvider, nil)
+}
+
+func NewWithFeedFetcher(llmProvider llm.Provider, searchProvider search.Provider, feedFetcher search.FeedFetcher) *Scheduler {
+	rss := search.NewRSSProvider()
+	if feedFetcher == nil {
+		feedFetcher = rss // default: fetch RSS directly (self-hosted mode)
+	}
 	return &Scheduler{
 		llmProvider:    llmProvider,
 		searchProvider: searchProvider,
-		rssProvider:    search.NewRSSProvider(),
+		feedFetcher:    feedFetcher,
+		rssProvider:    rss,
 		scraper:        search.NewScraper("", 0),
 		curator:        engine.NewCurator(llm.AsEngine(llmProvider)),
 	}
@@ -58,8 +73,8 @@ func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscri
 
 	switch sub.SourceType {
 	case "feed":
-		// Source subscription: fetch RSS feed directly
-		results, err := s.rssProvider.FetchFeed(ctx, sub.SourceURL, sub.LastFetchedAt)
+		// Source subscription: fetch via feedFetcher (managed API or direct RSS)
+		results, err := s.feedFetcher.FetchFeed(ctx, sub.SourceURL, sub.LastFetchedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch feed %s: %w", sub.SourceURL, err)
 		}
