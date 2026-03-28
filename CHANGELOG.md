@@ -2,6 +2,20 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.1.1] - 2026-03-28 — Bug Fixes & Review Hardening
+
+### Fixed
+- **Feed list showing only 3 items**: Screen models were created with height=0 on navigation. Terminal dimensions are now forwarded on every screen switch.
+- **Feed sort order**: TUI feed now sorts by published date (newest first) instead of relevance score. Items with missing dates sink to bottom.
+- **Relevance percentage alignment**: Fixed column alignment for scores (85% vs 100%) using fixed-width formatting.
+- **Spinner never restarting after idle**: Animation tick is now batched on all screen transitions, not just dashboard.
+- **Per-topic refresh status dead**: `*tea.Program` is now threaded via `programHolder` so `p.Send(PerTopicRefreshMsg)` actually fires during refresh.
+- **Border off-by-one in RenderCard and RenderBanner**: Top border was 1 character narrower than content and bottom borders.
+- **Column width calculation**: Uses visual width (`lipgloss.Width`) instead of byte length (`len`) for topic names, fixing alignment with Unicode characters.
+
+### Changed
+- **errcheck linter**: Added to TODOS.md as P2 item to re-enable after golangci-lint v2 migration stabilizes.
+
 ## [0.3.1.0] - 2026-03-28 — Premium UX Polish (Bloomberg Terminal Aesthetic)
 
 ### Added
