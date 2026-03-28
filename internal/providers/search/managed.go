@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/oluoyefeso/termiflow/internal/providers"
-	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 )
 
 // ManagedSearchProvider calls the termiflow backend proxy instead of Tavily directly.
@@ -18,24 +17,17 @@ import (
 //	CLI ──► POST {baseURL}/v1/search ──► termiflow backend ──► Tavily
 //	        Authorization: Bearer {apiKey}      api_key: server-side key
 type ManagedSearchProvider struct {
-	apiKey  string
-	baseURL string
-	client  *http.Client
+	mc *providers.ManagedClient
 }
 
 func NewManagedSearchProvider(apiKey, baseURL string) *ManagedSearchProvider {
-	if baseURL == "" {
-		baseURL = "https://api.termiflow.com"
-	}
 	return &ManagedSearchProvider{
-		apiKey:  apiKey,
-		baseURL: baseURL,
-		client:  &http.Client{Timeout: 120 * time.Second},
+		mc: providers.NewManagedClient(apiKey, baseURL),
 	}
 }
 
 func (p *ManagedSearchProvider) Name() string    { return "managed" }
-func (p *ManagedSearchProvider) Available() bool { return p.apiKey != "" }
+func (p *ManagedSearchProvider) Available() bool { return p.mc.APIKey != "" }
 
 type managedSearchRequest struct {
 	Query      string `json:"query"`
@@ -64,14 +56,11 @@ func (p *ManagedSearchProvider) Search(ctx context.Context, req SearchRequest) (
 	}
 
 	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) { //nolint:bodyclose // DoWithRetry manages body lifecycle
-		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/search", bytes.NewReader(jsonBody))
+		httpReq, err := p.mc.NewRequest(ctx, "POST", "/v1/search", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err
 		}
-		httpReq.Header.Set("Content-Type", "application/json")
-		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-		httpReq.Header.Set("X-Termiflow-Version", llm.CLIVersion)
-		return p.client.Do(httpReq)
+		return p.mc.Do(httpReq)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("managed search: %w", err)
