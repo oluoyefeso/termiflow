@@ -71,7 +71,7 @@ var (
 
 	// Selected item background
 	StyleSelectedBg = lipgloss.NewStyle().
-				Background(lipgloss.Color("236"))
+			Background(lipgloss.Color("236"))
 
 	// Dotted separator
 	StyleDotSeparator = lipgloss.NewStyle().
