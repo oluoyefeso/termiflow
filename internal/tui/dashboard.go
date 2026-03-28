@@ -243,7 +243,7 @@ func (m DashboardModel) ContentView(spinnerFrame int) string {
 	var b strings.Builder
 
 	if m.loading && !m.refreshing {
-		b.WriteString(fmt.Sprintf("\n  %s Loading...\n", AnimatedSpinner(spinnerFrame)))
+		fmt.Fprintf(&b, "\n  %s Loading...\n", AnimatedSpinner(spinnerFrame))
 		return b.String()
 	}
 
@@ -344,8 +344,8 @@ func (m DashboardModel) renderSubscriptions(width int) string {
 			lastFetch = StyleMuted.Render(PadLeft(label, 7))
 		}
 
-		b.WriteString(fmt.Sprintf("  %s%s %s  %s  %s  %s\n",
-			cursor, topic, statusCol, unreadStr, freq, lastFetch))
+		fmt.Fprintf(&b, "  %s%s %s  %s  %s  %s\n",
+			cursor, topic, statusCol, unreadStr, freq, lastFetch)
 	}
 
 	return b.String()
@@ -360,25 +360,25 @@ func (m DashboardModel) renderActivityFooter(width int) string {
 
 	// Refresh status
 	if m.refreshing {
-		b.WriteString(fmt.Sprintf("  %s Refreshing feeds...\n", StyleCyan.Render("⦻")))
+		fmt.Fprintf(&b, "  %s Refreshing feeds...\n", StyleCyan.Render("⦻"))
 	} else if m.refreshErr != "" {
-		b.WriteString(fmt.Sprintf("  %s %s\n", StyleWarning.Render("!"), m.refreshErr))
+		fmt.Fprintf(&b, "  %s %s\n", StyleWarning.Render("!"), m.refreshErr)
 	} else if !m.lastRefresh.IsZero() {
 		ago := time.Since(m.lastRefresh)
 		label := "just now"
 		if ago > time.Minute {
 			label = fmt.Sprintf("%dm ago", int(ago.Minutes()))
 		}
-		b.WriteString(fmt.Sprintf("  %s Last refreshed %s\n",
-			StyleSuccess.Render("✓"), StyleMuted.Render(label)))
+		fmt.Fprintf(&b, "  %s Last refreshed %s\n",
+			StyleSuccess.Render("✓"), StyleMuted.Render(label))
 	}
 
 	// Next auto-refresh
 	if !m.lastRefresh.IsZero() {
 		nextIn := autoRefreshInterval - time.Since(m.lastRefresh)
 		if nextIn > 0 {
-			b.WriteString(fmt.Sprintf("  %s Next auto-refresh in %dm\n",
-				StyleMuted.Render("⦻"), int(nextIn.Minutes())))
+			fmt.Fprintf(&b, "  %s Next auto-refresh in %dm\n",
+				StyleMuted.Render("⦻"), int(nextIn.Minutes()))
 		}
 	}
 

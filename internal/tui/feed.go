@@ -207,7 +207,7 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 	var b strings.Builder
 
 	if m.loading {
-		b.WriteString(fmt.Sprintf("\n  %s Loading...\n", AnimatedSpinner(spinnerFrame)))
+		fmt.Fprintf(&b, "\n  %s Loading...\n", AnimatedSpinner(spinnerFrame))
 		return b.String()
 	}
 
@@ -221,7 +221,7 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 	if m.unreadOnly {
 		countLabel += " (unread)"
 	}
-	b.WriteString(fmt.Sprintf("\n  %s\n", StyleMuted.Render(countLabel)))
+	fmt.Fprintf(&b, "\n  %s\n", StyleMuted.Render(countLabel))
 
 	if len(m.filtered) == 0 {
 		msg := "No items"
@@ -237,12 +237,12 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 
 	// Filter bar
 	if m.filtering {
-		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render("Filter:"), m.filterInput.View()))
+		fmt.Fprintf(&b, "  %s %s\n", StyleTitle.Render("Filter:"), m.filterInput.View())
 	} else if m.filterText != "" {
-		b.WriteString(fmt.Sprintf("  %s %s\n",
+		fmt.Fprintf(&b, "  %s %s\n",
 			StyleTitle.Render("Filter:"),
 			StyleMuted.Render(m.filterText),
-		))
+		)
 	}
 
 	b.WriteString("\n")
