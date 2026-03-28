@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -284,11 +285,12 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 	defer cancel()
 
 	var (
-		wg            sync.WaitGroup
-		mu            sync.Mutex
-		totalNewItems int
-		offline       atomic.Bool
-		rateLimited   []string // topic names that hit rate limits
+		wg             sync.WaitGroup
+		mu             sync.Mutex
+		totalNewItems  int
+		offline        atomic.Bool
+		rateLimited    []string // topic names that hit rate limits
+		rateLimitError *providers.RateLimitError
 	)
 
 	sem := make(chan struct{}, 2) // 2 concurrent subs × 5 articles × 2 LLM calls = 20 max burst
@@ -310,6 +312,9 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 				if errors.As(err, &rle) {
 					mu.Lock()
 					rateLimited = append(rateLimited, sub.Topic)
+					if rateLimitError == nil {
+						rateLimitError = rle
+					}
 					mu.Unlock()
 					return
 				}
@@ -342,8 +347,12 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 	}
 
 	// Show rate limit warnings after spinner stops (avoids garbled output)
-	for _, topic := range rateLimited {
-		fmt.Printf("  %s Rate limited on %s — try again later.\n", ui.ErrorStyle.Render("!"), topic)
+	if len(rateLimited) > 0 {
+		fmt.Printf("  %s Skipped (rate limited): %s\n", ui.ErrorStyle.Render("!"),
+			strings.Join(rateLimited, ", "))
+		if rateLimitError != nil {
+			fmt.Printf("  %s\n", ui.MutedStyle.Render(rateLimitError.Error()))
+		}
 	}
 
 	return nil
