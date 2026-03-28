@@ -19,7 +19,7 @@ func TestIsManagedMode(t *testing.T) {
 	t.Run("true when TERMIFLOW_API_KEY set", func(t *testing.T) {
 		os.Setenv("TERMIFLOW_API_KEY", "tf_testkey")
 		defer os.Unsetenv("TERMIFLOW_API_KEY")
-		Load("") // reload config with env
+		Load("") //nolint:errcheck // reload config with env
 		if !IsManagedMode() {
 			t.Error("expected managed mode to be true with TERMIFLOW_API_KEY set")
 		}

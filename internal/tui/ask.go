@@ -101,7 +101,7 @@ func streamLLM(question string, sources []AskSource, ctx context.Context) tea.Cm
 
 		prompt := buildAskPrompt(question, sources)
 		systemPrompt := "You are a helpful assistant that provides accurate, well-researched answers. Use the provided sources to inform your response. Be concise but thorough."
-		if userCtx := buildUserContext(); userCtx != "" {
+		if userCtx := db.BuildUserContext(); userCtx != "" {
 			systemPrompt += "\n\n" + userCtx
 		}
 		chunks, err := provider.Stream(ctx, llm.CompletionRequest{
@@ -512,35 +512,6 @@ func getAskSaveDir() string {
 		home = "."
 	}
 	return filepath.Join(home, ".local", "share", "termiflow", "saved")
-}
-
-func buildUserContext() string {
-	subs, err := db.GetActiveSubscriptions()
-	if err != nil || len(subs) == 0 {
-		return ""
-	}
-
-	var sb strings.Builder
-	sb.WriteString("The user is running termiflow, a terminal news tool. Here is their current state:\n")
-
-	if config.IsManagedMode() {
-		sb.WriteString("Mode: Managed (using termiflow API)\n")
-	} else {
-		cfg := config.Get()
-		fmt.Fprintf(&sb, "Mode: Self-hosted (provider: %s)\n", cfg.General.DefaultProvider)
-	}
-
-	fmt.Fprintf(&sb, "Subscriptions: %d active\n", len(subs))
-	for _, sub := range subs {
-		total, unread, _ := db.GetSubscriptionItemCount(sub.ID)
-		lastFetch := "never"
-		if sub.LastFetchedAt != nil {
-			lastFetch = sub.LastFetchedAt.Format("2006-01-02 15:04")
-		}
-		fmt.Fprintf(&sb, "- %s (%s, %d items, %d unread, last fetched: %s)\n",
-			sub.Topic, sub.Frequency, total, unread, lastFetch)
-	}
-	return sb.String()
 }
 
 var askNonAlpha = regexp.MustCompile(`[^a-z0-9]+`)
