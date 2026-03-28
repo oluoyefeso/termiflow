@@ -144,7 +144,7 @@ No browser switching, no context loss, no noise. Just signal.`,
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		bgFetchWg.Wait()
-		db.Close()
+		db.Close() //nolint:errcheck // best-effort cleanup on exit
 	},
 }
 

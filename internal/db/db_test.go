@@ -20,7 +20,7 @@ func setupTestDB(t *testing.T) func() {
 	}
 
 	return func() {
-		Close()
+		Close() //nolint:errcheck
 	}
 }
 
@@ -32,7 +32,7 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open() error = %v", err)
 	}
-	defer Close()
+	defer Close() //nolint:errcheck
 
 	if db == nil {
 		t.Error("Open() should set db variable")
@@ -203,9 +203,9 @@ func TestGetActiveSubscriptions(t *testing.T) {
 	active2 := &models.Subscription{Topic: "active2", Frequency: "daily", IsActive: true}
 	inactive := &models.Subscription{Topic: "inactive", Frequency: "daily", IsActive: false}
 
-	CreateSubscription(active1)
-	CreateSubscription(active2)
-	CreateSubscription(inactive)
+	CreateSubscription(active1)  //nolint:errcheck
+	CreateSubscription(active2)  //nolint:errcheck
+	CreateSubscription(inactive) //nolint:errcheck
 
 	subs, err := GetActiveSubscriptions()
 	if err != nil {
@@ -228,8 +228,8 @@ func TestGetAllSubscriptions(t *testing.T) {
 	defer cleanup()
 
 	// Create subscriptions
-	CreateSubscription(&models.Subscription{Topic: "all1", Frequency: "daily", IsActive: true})
-	CreateSubscription(&models.Subscription{Topic: "all2", Frequency: "daily", IsActive: false})
+	CreateSubscription(&models.Subscription{Topic: "all1", Frequency: "daily", IsActive: true})  //nolint:errcheck
+	CreateSubscription(&models.Subscription{Topic: "all2", Frequency: "daily", IsActive: false}) //nolint:errcheck
 
 	subs, err := GetAllSubscriptions()
 	if err != nil {
@@ -250,7 +250,7 @@ func TestUpdateSubscription(t *testing.T) {
 		Frequency: "daily",
 		IsActive:  true,
 	}
-	CreateSubscription(sub)
+	CreateSubscription(sub) //nolint:errcheck
 
 	// Update it
 	sub.Frequency = "hourly"
@@ -279,7 +279,7 @@ func TestDeleteSubscription(t *testing.T) {
 		Frequency: "daily",
 		IsActive:  true,
 	}
-	CreateSubscription(sub)
+	CreateSubscription(sub) //nolint:errcheck
 
 	err := DeleteSubscription("delete-test")
 	if err != nil {
@@ -296,8 +296,8 @@ func TestDeleteAllSubscriptions(t *testing.T) {
 	cleanup := setupTestDB(t)
 	defer cleanup()
 
-	CreateSubscription(&models.Subscription{Topic: "delall1", Frequency: "daily", IsActive: true})
-	CreateSubscription(&models.Subscription{Topic: "delall2", Frequency: "daily", IsActive: true})
+	CreateSubscription(&models.Subscription{Topic: "delall1", Frequency: "daily", IsActive: true}) //nolint:errcheck
+	CreateSubscription(&models.Subscription{Topic: "delall2", Frequency: "daily", IsActive: true}) //nolint:errcheck
 
 	err := DeleteAllSubscriptions()
 	if err != nil {
@@ -338,7 +338,7 @@ func TestSubscriptionWithSources(t *testing.T) {
 		Sources:   []string{"tavily", "rss", "scrape"},
 		IsActive:  true,
 	}
-	CreateSubscription(sub)
+	CreateSubscription(sub) //nolint:errcheck
 
 	retrieved, err := GetSubscription("sources-test")
 	if err != nil {

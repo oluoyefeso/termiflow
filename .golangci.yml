@@ -14,7 +14,30 @@ linters:
     - unused
     - misspell
     - unconvert
+    - errcheck
   settings:
+    errcheck:
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*net/http.Response).Body.Close
+        - (io.Closer).Close
+        - (net/http.ResponseWriter).Write
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - os.Setenv
+        - os.Unsetenv
+        - os.RemoveAll
+        - os.MkdirAll
+        - os.WriteFile
+        - encoding/json.Encoder.Encode
+        - (*encoding/json.Encoder).Encode
+        - (*encoding/json.Decoder).Decode
+        - encoding/json.Unmarshal
+        - (*bytes.Buffer).ReadFrom
+        - (*os.File).Close
+      check-blank: false
     govet:
       enable-all: true
       disable:
