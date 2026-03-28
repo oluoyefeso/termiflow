@@ -143,25 +143,25 @@ func FormatFeedItem(title, source, timeAgo, summary string, tags []string) strin
 	var b strings.Builder
 
 	// Title — amber, bold, no indent bloat
-	b.WriteString(fmt.Sprintf("  %s\n", AccentStyle.Render(title)))
+	fmt.Fprintf(&b, "  %s\n", AccentStyle.Render(title))
 
 	// Source | time on same line, compact
-	b.WriteString(fmt.Sprintf("  %s  %s\n",
+	fmt.Fprintf(&b, "  %s  %s\n",
 		MutedStyle.Render(source),
 		MutedStyle.Render(timeAgo),
-	))
+	)
 
 	// Summary — slightly indented, wrapped
 	if summary != "" {
 		wrapped := WrapText(summary, 65)
 		for _, line := range strings.Split(wrapped, "\n") {
-			b.WriteString(fmt.Sprintf("  %s\n", MutedStyle.Render(line)))
+			fmt.Fprintf(&b, "  %s\n", MutedStyle.Render(line))
 		}
 	}
 
 	// Tags — inline, compact
 	if len(tags) > 0 {
-		b.WriteString(fmt.Sprintf("  %s\n", Tags(tags)))
+		fmt.Fprintf(&b, "  %s\n", Tags(tags))
 	}
 
 	return b.String()
