@@ -3,11 +3,17 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/oluoyefeso/termiflow/internal/tui/components"
 )
+
+// spinnerTickMsg drives the loading animation.
+type spinnerTickMsg struct{}
 
 // AppModel is the root model that routes between screens.
 type AppModel struct {
@@ -22,6 +28,9 @@ type AppModel struct {
 	height       int
 	banners      []BannerMsg
 	showHelp     bool
+	totalUnread  int
+	lastRefresh  time.Time
+	spinnerFrame int
 }
 
 // NewAppModel creates the root app model with optional notification banners.
@@ -34,7 +43,13 @@ func NewAppModel(banners []BannerMsg) AppModel {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return m.dashboard.Init()
+	return tea.Batch(m.dashboard.Init(), spinnerTick())
+}
+
+func spinnerTick() tea.Cmd {
+	return tea.Tick(150*time.Millisecond, func(t time.Time) tea.Msg {
+		return spinnerTickMsg{}
+	})
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -42,23 +57,33 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Forward to active screen
+		// Forward adjusted height to active screen
+		contentH := ContentHeight(msg.Height, len(m.banners))
+		adjustedMsg := tea.WindowSizeMsg{Width: msg.Width, Height: contentH}
 		var cmd tea.Cmd
 		switch m.activeScreen {
 		case ScreenDashboard:
-			m.dashboard, cmd = m.dashboard.Update(msg)
+			m.dashboard, cmd = m.dashboard.Update(adjustedMsg)
 		case ScreenFeed:
-			m.feed, cmd = m.feed.Update(msg)
+			m.feed, cmd = m.feed.Update(adjustedMsg)
 		case ScreenDetail:
-			m.detail, cmd = m.detail.Update(msg)
+			m.detail, cmd = m.detail.Update(adjustedMsg)
 		case ScreenAsk:
-			m.ask, cmd = m.ask.Update(msg)
+			m.ask, cmd = m.ask.Update(adjustedMsg)
 		case ScreenTopics:
-			m.topics, cmd = m.topics.Update(msg)
+			m.topics, cmd = m.topics.Update(adjustedMsg)
 		case ScreenStatus:
-			m.status, cmd = m.status.Update(msg)
+			m.status, cmd = m.status.Update(adjustedMsg)
 		}
 		return m, cmd
+
+	case spinnerTickMsg:
+		m.spinnerFrame++
+		// Only keep ticking if something is animating
+		if m.needsAnimation() {
+			return m, spinnerTick()
+		}
+		return m, nil
 
 	case tea.KeyMsg:
 		// Skip global keys when a screen is capturing text input
@@ -68,13 +93,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if m.activeScreen == ScreenTopics && (m.topics.freqPicking || m.topics.confirming) {
-			// During frequency picker or delete confirmation: route keys to topics
 			var cmd tea.Cmd
 			m.topics, cmd = m.topics.Update(msg)
 			return m, cmd
 		}
 		if m.activeScreen == ScreenAsk && m.ask.phase != askPhaseDone {
-			// During input, searching, and streaming: route all keys to ask screen
 			var cmd tea.Cmd
 			m.ask, cmd = m.ask.Update(msg)
 			return m, cmd
@@ -96,19 +119,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Screen {
 		case ScreenDashboard:
 			m.activeScreen = ScreenDashboard
-			// Refresh dashboard data when returning
-			return m, loadSubscriptions
+			return m, tea.Batch(loadSubscriptions, m.ensureSpinnerRunning())
 		case ScreenFeed:
 			if msg.Subscription != nil {
-				// New feed: initialize from subscription
 				m.feed = NewFeedModel(msg.Subscription)
 				m.activeScreen = ScreenFeed
 				return m, m.feed.Init()
 			}
-			// Returning from detail: reuse existing feed model
 			m.activeScreen = ScreenFeed
 		case ScreenAsk:
-			// Cancel any inflight stream from a previous ask
 			if m.ask.cancel != nil {
 				m.ask.cancel()
 			}
@@ -128,6 +147,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case OpenDetailMsg:
 		m.detail = NewDetailModel(msg.Item, msg.Items, msg.Index)
+		m.detail.topic = msg.Topic
 		m.activeScreen = ScreenDetail
 		return m, m.detail.Init()
 
@@ -135,8 +155,30 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.banners = msg.Banners
 		return m, nil
 
-	case AllRefreshDoneMsg, autoRefreshTickMsg:
-		// Always route refresh messages to dashboard, regardless of active screen
+	case SubscriptionsLoadedMsg:
+		// Track total unread for header badge
+		m.totalUnread = 0
+		for _, s := range msg.Subs {
+			m.totalUnread += s.Unread
+		}
+		// Always route to dashboard
+		var cmd tea.Cmd
+		m.dashboard, cmd = m.dashboard.Update(msg)
+		return m, cmd
+
+	case AllRefreshDoneMsg:
+		m.lastRefresh = time.Now()
+		var cmd tea.Cmd
+		m.dashboard, cmd = m.dashboard.Update(msg)
+		return m, cmd
+
+	case PerTopicRefreshMsg:
+		// Route to dashboard for per-topic status update
+		var cmd tea.Cmd
+		m.dashboard, cmd = m.dashboard.Update(msg)
+		return m, cmd
+
+	case autoRefreshTickMsg:
 		var cmd tea.Cmd
 		m.dashboard, cmd = m.dashboard.Update(msg)
 		return m, cmd
@@ -163,68 +205,136 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) View() string {
+	w := m.width
+	if w == 0 {
+		w = 69
+	}
+
 	var b strings.Builder
 
-	// Notification banners at the top
+	// 1. Notification banners (bordered cards)
 	for _, banner := range m.banners {
-		b.WriteString(renderBanner(banner))
+		b.WriteString(RenderBanner(banner, w))
+		b.WriteString("\n")
 	}
 
-	// Help overlay
+	// 2. Persistent header with breadcrumb
+	breadcrumb := m.activeBreadcrumb()
+	b.WriteString(RenderHeader(w, breadcrumb, m.totalUnread, m.lastRefresh))
+	b.WriteString("\n")
+
+	// 3. Help overlay OR screen content
 	if m.showHelp {
-		b.WriteString(m.renderHelp())
-		return b.String()
+		b.WriteString(m.renderHelpOverlay(w))
+	} else {
+		b.WriteString(m.activeContentView())
 	}
 
-	// Active screen
-	switch m.activeScreen {
-	case ScreenDashboard:
-		b.WriteString(m.dashboard.View())
-	case ScreenFeed:
-		b.WriteString(m.feed.View())
-	case ScreenDetail:
-		b.WriteString(m.detail.View())
-	case ScreenAsk:
-		b.WriteString(m.ask.View())
-	case ScreenTopics:
-		b.WriteString(m.topics.View())
-	case ScreenStatus:
-		b.WriteString(m.status.View())
-	default:
-		b.WriteString(StyleMuted.Render("  Screen not implemented yet"))
+	// 4. Pad to push status bar to bottom
+	currentLines := strings.Count(b.String(), "\n")
+	targetLines := m.height - footerLines
+	if targetLines < currentLines {
+		targetLines = currentLines
 	}
+	if remaining := targetLines - currentLines; remaining > 0 {
+		b.WriteString(strings.Repeat("\n", remaining))
+	}
+
+	// 5. Persistent status bar
+	hints := m.activeStatusHints()
+	// Always add help and quit
+	hints = append(hints, components.KeyHint{Key: "?", Desc: "help"})
+	if m.activeScreen == ScreenDashboard {
+		hints = append(hints, components.KeyHint{Key: "q", Desc: "quit"})
+	} else {
+		hints = append(hints, components.KeyHint{Key: "esc", Desc: "back"})
+	}
+	b.WriteString(RenderStatusBar(hints, w))
 
 	return b.String()
 }
 
-func renderBanner(banner BannerMsg) string {
-	icon := "▲"
-	var s lipgloss.Style
-
-	switch banner.Type {
-	case "info":
-		s = StyleCyan
-	case "warning":
-		s = StyleWarning
-	case "update", "version":
-		s = StyleBlue
-	case "breaking":
-		icon = "!"
-		s = StyleError
-	default:
-		s = StyleMuted
+// needsAnimation returns true if any screen is in a loading/animating state.
+func (m AppModel) needsAnimation() bool {
+	switch m.activeScreen {
+	case ScreenDashboard:
+		return m.dashboard.loading || m.dashboard.refreshing
+	case ScreenFeed:
+		return m.feed.loading
+	case ScreenAsk:
+		return m.ask.phase == askPhaseSearching || m.ask.phase == askPhaseStreaming
 	}
-
-	return fmt.Sprintf(" %s %s\n", s.Render(icon), s.Render(banner.Message))
+	return false
 }
 
-func (m AppModel) renderHelp() string {
-	var b strings.Builder
+// ensureSpinnerRunning restarts the spinner tick if animation is needed.
+func (m AppModel) ensureSpinnerRunning() tea.Cmd {
+	if m.needsAnimation() {
+		return spinnerTick()
+	}
+	return nil
+}
 
-	b.WriteString("\n")
-	b.WriteString(StyleAccent.Render("  KEYBINDINGS"))
-	b.WriteString("\n\n")
+// activeBreadcrumb returns the breadcrumb segments for the current screen.
+func (m AppModel) activeBreadcrumb() []string {
+	switch m.activeScreen {
+	case ScreenDashboard:
+		return nil
+	case ScreenFeed:
+		return m.feed.Breadcrumb()
+	case ScreenDetail:
+		return m.detail.Breadcrumb()
+	case ScreenAsk:
+		return []string{"ASK"}
+	case ScreenTopics:
+		return []string{"TOPICS"}
+	case ScreenStatus:
+		return []string{"STATUS"}
+	}
+	return nil
+}
 
+// activeContentView returns the content from the active screen (no chrome).
+func (m AppModel) activeContentView() string {
+	switch m.activeScreen {
+	case ScreenDashboard:
+		return m.dashboard.ContentView(m.spinnerFrame)
+	case ScreenFeed:
+		return m.feed.ContentView(m.spinnerFrame)
+	case ScreenDetail:
+		return m.detail.ContentView()
+	case ScreenAsk:
+		return m.ask.ContentView(m.spinnerFrame)
+	case ScreenTopics:
+		return m.topics.ContentView()
+	case ScreenStatus:
+		return m.status.ContentView()
+	default:
+		return StyleMuted.Render("  Screen not implemented yet")
+	}
+}
+
+// activeStatusHints returns the keybinding hints for the current screen.
+func (m AppModel) activeStatusHints() []components.KeyHint {
+	switch m.activeScreen {
+	case ScreenDashboard:
+		return m.dashboard.StatusHints()
+	case ScreenFeed:
+		return m.feed.StatusHints()
+	case ScreenDetail:
+		return m.detail.StatusHints()
+	case ScreenAsk:
+		return m.ask.StatusHints()
+	case ScreenTopics:
+		return m.topics.StatusHints()
+	case ScreenStatus:
+		return m.status.StatusHints()
+	}
+	return nil
+}
+
+// renderHelpOverlay renders a centered bordered help card.
+func (m AppModel) renderHelpOverlay(width int) string {
 	type helpEntry struct{ key, desc string }
 
 	var entries []helpEntry
@@ -238,7 +348,7 @@ func (m AppModel) renderHelp() string {
 			{"t", "topics browser"},
 			{"s", "status info"},
 			{"r", "refresh all feeds"},
-			{"?", "toggle this help"},
+			{"?", "close help"},
 			{"q, ctrl+c", "quit"},
 		}
 	case ScreenFeed:
@@ -248,8 +358,7 @@ func (m AppModel) renderHelp() string {
 			{"/", "filter articles"},
 			{"u", "toggle unread only"},
 			{"esc", "back to dashboard"},
-			{"?", "toggle this help"},
-			{"q, ctrl+c", "quit"},
+			{"?", "close help"},
 		}
 	case ScreenDetail:
 		entries = []helpEntry{
@@ -258,8 +367,7 @@ func (m AppModel) renderHelp() string {
 			{"o", "open in browser"},
 			{"m", "toggle read/unread"},
 			{"esc", "back to feed list"},
-			{"?", "toggle this help"},
-			{"q, ctrl+c", "quit"},
+			{"?", "close help"},
 		}
 	case ScreenAsk:
 		entries = []helpEntry{
@@ -268,7 +376,6 @@ func (m AppModel) renderHelp() string {
 			{"j/k", "scroll response"},
 			{"ctrl+c", "cancel streaming"},
 			{"esc", "new question / back"},
-			{"q", "quit"},
 		}
 	case ScreenTopics:
 		entries = []helpEntry{
@@ -285,18 +392,43 @@ func (m AppModel) renderHelp() string {
 		}
 	}
 
+	// Build card content
+	var lines []string
 	for _, e := range entries {
-		b.WriteString(fmt.Sprintf("    %-16s %s\n",
+		lines = append(lines, fmt.Sprintf("%-16s %s",
 			StyleTitle.Render(e.key),
 			StyleMuted.Render(e.desc),
 		))
 	}
 
-	b.WriteString("\n")
-	b.WriteString(StyleMuted.Render("  Press ? to close"))
-	b.WriteString("\n")
+	// Center the card
+	cardWidth := 48
+	if cardWidth > width-4 {
+		cardWidth = width - 4
+	}
 
-	return b.String()
+	card := RenderCard("KEYBINDINGS", lines, cardWidth)
+
+	// Center horizontally
+	cardLines := strings.Split(card, "\n")
+	var centered []string
+	for _, line := range cardLines {
+		lineWidth := lipgloss.Width(line)
+		pad := (width - lineWidth) / 2
+		if pad < 0 {
+			pad = 0
+		}
+		centered = append(centered, strings.Repeat(" ", pad)+line)
+	}
+
+	// Add vertical padding
+	result := "\n\n" + strings.Join(centered, "\n") + "\n\n"
+	closePad := (width - 18) / 2
+	if closePad < 0 {
+		closePad = 0
+	}
+	result += StyleMuted.Render(strings.Repeat(" ", closePad) + "Press ? to close")
+	return result
 }
 
 // Run starts the Bubble Tea program.
