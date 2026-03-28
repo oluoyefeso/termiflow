@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/tui/components"
 	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
@@ -63,7 +64,6 @@ func (m FeedModel) Init() tea.Cmd {
 func (m FeedModel) Update(msg tea.Msg) (FeedModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FeedItemsLoadedMsg:
-		// Guard: ignore stale responses from a previous subscription
 		if msg.Topic != m.topic {
 			return m, nil
 		}
@@ -106,11 +106,13 @@ func (m FeedModel) Update(msg tea.Msg) (FeedModel, tea.Cmd) {
 		case key.Matches(msg, FeedKeys.Enter):
 			if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
 				item := m.filtered[m.cursor]
+				topic := m.topic
 				return m, func() tea.Msg {
 					return OpenDetailMsg{
 						Item:  item,
 						Items: m.filtered,
 						Index: m.cursor,
+						Topic: topic,
 					}
 				}
 			}
@@ -154,7 +156,6 @@ func (m *FeedModel) updateFilter(msg tea.KeyMsg) (FeedModel, tea.Cmd) {
 
 	var cmd tea.Cmd
 	m.filterInput, cmd = m.filterInput.Update(msg)
-	// Live filter as you type
 	m.filterText = m.filterInput.Value()
 	m.applyFilter()
 	if m.cursor >= len(m.filtered) {
@@ -181,7 +182,23 @@ func (m *FeedModel) applyFilter() {
 	}
 }
 
-func (m FeedModel) View() string {
+// Breadcrumb returns breadcrumb segments for the feed screen.
+func (m FeedModel) Breadcrumb() []string {
+	return []string{strings.ToUpper(m.topic)}
+}
+
+// StatusHints returns keybinding hints for the feed screen.
+func (m FeedModel) StatusHints() []components.KeyHint {
+	hints := []components.KeyHint{
+		{Key: "enter", Desc: "open"},
+		{Key: "/", Desc: "filter"},
+		{Key: "u", Desc: "unread"},
+	}
+	return hints
+}
+
+// ContentView renders the feed list content without header/footer chrome.
+func (m FeedModel) ContentView(spinnerFrame int) string {
 	w := m.width
 	if w == 0 {
 		w = 69
@@ -189,27 +206,8 @@ func (m FeedModel) View() string {
 
 	var b strings.Builder
 
-	// Header
-	title := strings.ToUpper(m.topic)
-	countLabel := fmt.Sprintf("%d items", len(m.filtered))
-	if m.unreadOnly {
-		countLabel += " (unread)"
-	}
-	top := StyleMuted.Render(Bar("═", w))
-	headerPad := w - lipgloss.Width(StyleAccent.Render(title)) - lipgloss.Width(StyleMuted.Render(countLabel)) - 4
-	if headerPad < 1 {
-		headerPad = 1
-	}
-	content := fmt.Sprintf("  %s%s%s",
-		StyleAccent.Render(title),
-		strings.Repeat(" ", headerPad),
-		StyleMuted.Render(countLabel),
-	)
-	bot := StyleMuted.Render(Bar("═", w))
-	b.WriteString(fmt.Sprintf("%s\n%s\n%s\n", top, content, bot))
-
 	if m.loading {
-		b.WriteString(StyleMuted.Render("\n  Loading..."))
+		b.WriteString(fmt.Sprintf("\n  %s Loading...\n", AnimatedSpinner(spinnerFrame)))
 		return b.String()
 	}
 
@@ -217,6 +215,13 @@ func (m FeedModel) View() string {
 		b.WriteString(StyleError.Render(fmt.Sprintf("\n  Error: %v", m.err)))
 		return b.String()
 	}
+
+	// Count label
+	countLabel := fmt.Sprintf("%d items", len(m.filtered))
+	if m.unreadOnly {
+		countLabel += " (unread)"
+	}
+	b.WriteString(fmt.Sprintf("\n  %s\n", StyleMuted.Render(countLabel)))
 
 	if len(m.filtered) == 0 {
 		msg := "No items"
@@ -243,17 +248,22 @@ func (m FeedModel) View() string {
 	b.WriteString("\n")
 
 	// Calculate visible area
-	visibleHeight := m.height - strings.Count(b.String(), "\n") - 3 // 3 for status bar
+	visibleHeight := m.height - strings.Count(b.String(), "\n") - 1
 	if visibleHeight < 3 {
 		visibleHeight = 10
 	}
-
-	// Scroll window: keep cursor visible
-	startIdx := 0
-	if m.cursor >= visibleHeight {
-		startIdx = m.cursor - visibleHeight + 1
+	// Each item takes 2 lines + 1 blank = 3 lines
+	visibleItems := visibleHeight / 3
+	if visibleItems < 1 {
+		visibleItems = 5
 	}
-	endIdx := startIdx + visibleHeight
+
+	// Scroll window
+	startIdx := 0
+	if m.cursor >= visibleItems {
+		startIdx = m.cursor - visibleItems + 1
+	}
+	endIdx := startIdx + visibleItems
 	if endIdx > len(m.filtered) {
 		endIdx = len(m.filtered)
 	}
@@ -261,35 +271,31 @@ func (m FeedModel) View() string {
 	// Render items
 	for i := startIdx; i < endIdx; i++ {
 		item := m.filtered[i]
-		b.WriteString(m.renderItem(item, i == m.cursor))
+		b.WriteString(m.renderItem(item, i == m.cursor, w))
 	}
 
 	// Scroll indicator
-	if len(m.filtered) > visibleHeight {
+	if len(m.filtered) > visibleItems {
 		b.WriteString(StyleMuted.Render(fmt.Sprintf("  ... %d/%d items\n", m.cursor+1, len(m.filtered))))
 	}
-
-	// Status bar at bottom
-	hints := []string{
-		StyleTitle.Render("[enter]") + " " + StyleMuted.Render("open"),
-		StyleTitle.Render("[/]") + " " + StyleMuted.Render("filter"),
-		StyleTitle.Render("[u]") + " " + StyleMuted.Render("unread"),
-		StyleTitle.Render("[esc]") + " " + StyleMuted.Render("back"),
-	}
-	b.WriteString("\n" + StyleMuted.Render(Bar("─", w)) + "\n")
-	b.WriteString(" " + strings.Join(hints, "  "))
 
 	return b.String()
 }
 
-func (m FeedModel) renderItem(item *models.FeedItem, selected bool) string {
+func (m FeedModel) renderItem(item *models.FeedItem, selected bool, width int) string {
 	var b strings.Builder
 
-	// Cursor + read indicator
+	// Read indicator
+	readDot := StyleSuccess.Render("●")
+	if item.IsRead {
+		readDot = StyleMuted.Render("○")
+	}
+
+	// Cursor
 	cursor := "  "
 	titleStyle := StyleMuted
 	if !item.IsRead {
-		titleStyle = StyleAccent
+		titleStyle = lipgloss.NewStyle().Foreground(ColorAccent)
 	}
 	if selected {
 		cursor = StyleSelectedIndicator.Render("▸ ")
@@ -300,28 +306,52 @@ func (m FeedModel) renderItem(item *models.FeedItem, selected bool) string {
 		}
 	}
 
-	// Read indicator
-	readDot := StyleSuccess.Render("●")
-	if item.IsRead {
-		readDot = StyleMuted.Render("○")
+	// Relevance micro-bar (right-aligned)
+	var scoreStr string
+	if item.RelevanceScore > 0 {
+		pct := fmt.Sprintf("%.0f%%", item.RelevanceScore*100)
+		scoreStr = RelevanceBar(item.RelevanceScore) + " " + StyleMuted.Render(pct)
 	}
 
-	// Title line (rune-safe truncation for multi-byte characters)
+	// Title (truncated with muted ellipsis)
 	title := item.Title
-	runes := []rune(title)
-	if len(runes) > 60 {
-		title = string(runes[:57]) + "..."
+	maxTitleWidth := width - 20 // space for cursor + dot + score + padding
+	if maxTitleWidth < 10 {
+		maxTitleWidth = 10
 	}
-	b.WriteString(fmt.Sprintf("  %s%s %s\n", cursor, readDot, titleStyle.Render(title)))
+	runes := []rune(title)
+	if len(runes) > maxTitleWidth {
+		cutAt := maxTitleWidth - 3
+		if cutAt < 0 {
+			cutAt = 0
+		}
+		title = titleStyle.Render(string(runes[:cutAt])) + StyleMuted.Render("...")
+	} else {
+		title = titleStyle.Render(title)
+	}
 
-	// Meta line: source + time
-	meta := fmt.Sprintf("      %s  %s",
+	// Line 1: cursor + dot + title + score (right-aligned)
+	line1Left := fmt.Sprintf("  %s%s %s", cursor, readDot, title)
+	line1LeftWidth := lipgloss.Width(line1Left)
+	scoreWidth := lipgloss.Width(scoreStr)
+	pad := width - line1LeftWidth - scoreWidth - 1
+	if pad < 1 {
+		pad = 1
+	}
+
+	line1 := line1Left + strings.Repeat(" ", pad) + scoreStr
+
+	// Apply selection background
+	if selected {
+		line1 = StyleSelectedBg.Render(line1)
+	}
+	b.WriteString(line1 + "\n")
+
+	// Line 2: source · time
+	meta := fmt.Sprintf("      %s · %s",
 		StyleMuted.Render(item.SourceName),
 		StyleMuted.Render(item.TimeAgo()),
 	)
-	if item.RelevanceScore > 0 {
-		meta += fmt.Sprintf("  %s", StyleMuted.Render(fmt.Sprintf("%.0f%%", item.RelevanceScore*100)))
-	}
 	b.WriteString(meta + "\n")
 
 	return b.String()
