@@ -120,7 +120,11 @@ func RenderBanner(banner BannerMsg, width int) string {
 	}
 
 	labelLen := utf8.RuneCountInString(label)
-	fillLen := innerWidth - labelLen - 2
+	// Top border must match bottom border width (innerWidth + 4 total)
+	// topLeft = "┌─ " + label + " " = 4 + labelLen chars
+	// topRight = fill + "┐" = fill + 1 chars
+	// Total = 4 + labelLen + fill + 1 = innerWidth + 4 → fill = innerWidth - labelLen - 1
+	fillLen := innerWidth - labelLen - 1
 	if fillLen < 0 {
 		fillLen = 0
 	}
@@ -149,9 +153,10 @@ func RenderCard(title string, contentLines []string, width int) string {
 		innerWidth = 10
 	}
 
-	// Top border with title
+	// Top border with title (must match bottom border width: innerWidth + 4)
 	topLeft := "┌─ " + title + " "
-	remaining := innerWidth - utf8.RuneCountInString(title) - 2
+	topLeftLen := 3 + utf8.RuneCountInString(title) + 1 // "┌─ " + title + " "
+	remaining := (innerWidth + 4) - topLeftLen - 1       // -1 for closing "┐"
 	if remaining < 0 {
 		remaining = 0
 	}

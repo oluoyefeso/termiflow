@@ -30,7 +30,8 @@ type DashboardModel struct {
 	refreshing    bool
 	lastRefresh   time.Time
 	refreshErr    string
-	refreshStatus map[string]string // per-topic: ""/"⦻"/"✓ +N"/"✗"
+	refreshStatus map[string]string  // per-topic: ""/"⦻"/"✓ +N"/"✗"
+	programRef    *programHolder     // for p.Send in background refresh
 }
 
 func NewDashboardModel() DashboardModel {
@@ -95,9 +96,13 @@ func refreshAllFeeds(p *tea.Program) tea.Cmd {
 	}
 }
 
-// refreshAllFeedsSimple is the non-program version for compatibility.
-func refreshAllFeedsSimple() tea.Cmd {
-	return refreshAllFeeds(nil)
+// refreshAllFeedsWithRef uses the shared program holder to send per-topic updates.
+func refreshAllFeedsWithRef(ref *programHolder) tea.Cmd {
+	var p *tea.Program
+	if ref != nil {
+		p = ref.p
+	}
+	return refreshAllFeeds(p)
 }
 
 // autoRefreshTick sends a tick message for auto-refresh.
@@ -163,7 +168,7 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			for _, s := range m.subs {
 				m.refreshStatus[s.Sub.Topic] = "⦻"
 			}
-			return m, tea.Batch(refreshAllFeedsSimple(), autoRefreshTick())
+			return m, tea.Batch(refreshAllFeedsWithRef(m.programRef), autoRefreshTick())
 		}
 		return m, autoRefreshTick()
 
@@ -193,7 +198,7 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				for _, s := range m.subs {
 					m.refreshStatus[s.Sub.Topic] = "⦻"
 				}
-				return m, refreshAllFeedsSimple()
+				return m, refreshAllFeedsWithRef(m.programRef)
 			}
 		case key.Matches(msg, DashboardKeys.Ask):
 			return m, func() tea.Msg {
@@ -286,11 +291,12 @@ func (m DashboardModel) ContentView(spinnerFrame int) string {
 func (m DashboardModel) renderSubscriptions(width int) string {
 	var b strings.Builder
 
-	// Calculate column widths
+	// Calculate column widths (visual width for Unicode safety)
 	topicWidth := 20
 	for _, info := range m.subs {
-		if len(info.Sub.Topic) > topicWidth {
-			topicWidth = len(info.Sub.Topic)
+		w := lipgloss.Width(info.Sub.Topic)
+		if w > topicWidth {
+			topicWidth = w
 		}
 	}
 	topicWidth += 2 // padding
