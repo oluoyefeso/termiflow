@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -81,6 +82,7 @@ func (m *Manager) LoadCache() {
 }
 
 func (m *Manager) loadCacheFile() {
+	m.stale = false // Reset before re-evaluating
 	path := filepath.Join(m.cacheDir, "announcements.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -121,17 +123,11 @@ func (m *Manager) loadDismissedFile() {
 func (m *Manager) GetBanners() []BannerInfo {
 	var banners []BannerInfo
 
-	if m.version == "dev" || m.version == "" {
-		return banners
-	}
-
-	currentVer, err := semver.NewVersion(m.version)
-	if err != nil {
-		return banners
-	}
+	currentVer, _ := semver.NewVersion(m.version)
+	isDev := m.version == "dev" || m.version == "" || currentVer == nil
 
 	// Check min_supported_version — always shown if below minimum
-	if m.cache.MinSupportedVersion != "" {
+	if !isDev && m.cache.MinSupportedVersion != "" {
 		if minVer, err := semver.NewVersion(m.cache.MinSupportedVersion); err == nil {
 			if currentVer.LessThan(minVer) {
 				banners = append(banners, BannerInfo{
@@ -142,8 +138,8 @@ func (m *Manager) GetBanners() []BannerInfo {
 		}
 	}
 
-	// Check latest_version — shown once per version
-	if m.cache.LatestVersion != "" {
+	// Check latest_version — shown once per version (skip for dev builds)
+	if !isDev && m.cache.LatestVersion != "" {
 		if latestVer, err := semver.NewVersion(m.cache.LatestVersion); err == nil {
 			if currentVer.LessThan(latestVer) {
 				if !m.isVersionDismissed(m.cache.LatestVersion) {
@@ -160,6 +156,12 @@ func (m *Manager) GetBanners() []BannerInfo {
 	for _, ann := range m.cache.Announcements {
 		if _, dismissed := m.dismissed.DismissedIDs[ann.ID]; dismissed {
 			continue
+		}
+		// Skip expired announcements still in cache
+		if ann.ExpiresAt != nil {
+			if t, err := time.Parse(time.RFC3339, *ann.ExpiresAt); err == nil && time.Now().UTC().After(t) {
+				continue
+			}
 		}
 		banners = append(banners, BannerInfo{
 			Type:    ann.Type,
@@ -214,6 +216,22 @@ func (m *Manager) saveDismissedFile() {
 	os.Rename(tmpPath, path) //nolint:errcheck
 }
 
+// IsStale returns true if the cache is missing, corrupted, or expired.
+func (m *Manager) IsStale() bool {
+	return m.stale
+}
+
+// Fetch fetches announcements synchronously and updates the cache.
+func (m *Manager) Fetch(ctx context.Context) {
+	if m.isManagedMode {
+		m.fetchFromAPI(ctx)
+	} else {
+		m.fetchFromGitHub(ctx)
+	}
+	// Reload cache from disk after fetch
+	m.loadCacheFile()
+}
+
 // GetLatestVersion returns the cached latest version, if available.
 func (m *Manager) GetLatestVersion() string {
 	return m.cache.LatestVersion
@@ -229,13 +247,13 @@ func (m *Manager) FetchAsync(ctx context.Context) {
 }
 
 func (m *Manager) fetchFromAPI(ctx context.Context) {
-	url := fmt.Sprintf("%s/v1/announcements?version=%s", m.baseURL, m.version)
-	if m.cache.FetchedAt != "" {
-		url += "&since=" + m.cache.FetchedAt
+	endpoint := fmt.Sprintf("%s/v1/announcements", m.baseURL)
+	if _, err := semver.NewVersion(m.version); err == nil {
+		endpoint += "?version=" + url.QueryEscape(m.version)
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return
 	}

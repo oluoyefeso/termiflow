@@ -115,17 +115,41 @@ func TestGetBannersAlreadyLatest(t *testing.T) {
 }
 
 func TestGetBannersDevVersion(t *testing.T) {
+	// Dev version should skip version-comparison banners (update, breaking)
 	m, dir := testManager(t, true)
 	m.version = "dev"
 	writeCache(t, dir, Cache{
-		LatestVersion: "2.0.0",
-		FetchedAt:     time.Now().UTC().Format(time.RFC3339),
+		LatestVersion:       "2.0.0",
+		MinSupportedVersion: "1.5.0",
+		FetchedAt:           time.Now().UTC().Format(time.RFC3339),
 	})
 	m.LoadCache()
 
 	banners := m.GetBanners()
 	if len(banners) != 0 {
-		t.Errorf("dev version should skip banners, got %d", len(banners))
+		t.Errorf("dev version should skip version banners, got %d", len(banners))
+	}
+}
+
+func TestGetBannersDevVersionShowsAnnouncements(t *testing.T) {
+	// Dev version should still show announcements from the API
+	m, dir := testManager(t, true)
+	m.version = "dev"
+	writeCache(t, dir, Cache{
+		LatestVersion: "2.0.0",
+		FetchedAt:     time.Now().UTC().Format(time.RFC3339),
+		Announcements: []Announcement{
+			{ID: "ann_1", Type: "info", Message: "New feature!"},
+		},
+	})
+	m.LoadCache()
+
+	banners := m.GetBanners()
+	if len(banners) != 1 {
+		t.Fatalf("dev version should show announcements, got %d banners", len(banners))
+	}
+	if banners[0].Type != "info" || banners[0].Message != "New feature!" {
+		t.Errorf("unexpected banner: %+v", banners[0])
 	}
 }
 
