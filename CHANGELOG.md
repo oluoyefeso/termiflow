@@ -2,6 +2,12 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.10.1] - 2026-03-28 — Rate Limit Error UX
+
+### Fixed
+- **CLI rate limit messages**: `feed --refresh` now shows which topics were skipped and the actual wait time from the API (e.g., "Rate limited. Try again in 59m.") instead of generic "try again later."
+- **Ask rate limit handling**: `ask` command now detects 429 errors from both search and LLM providers and shows clean rate limit messages instead of raw wrapped errors.
+
 ## [0.3.10.0] - 2026-03-28 — TUI Sources Screen + Topics Improvements
 
 ### Added
