@@ -36,6 +36,7 @@ type AppModel struct {
 	detail       DetailModel
 	ask          AskModel
 	topics       TopicsModel
+	sources      SourcesModel
 	status       StatusModel
 	width        int
 	height       int
@@ -110,6 +111,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ask, cmd = m.ask.Update(adjustedMsg)
 		case ScreenTopics:
 			m.topics, cmd = m.topics.Update(adjustedMsg)
+		case ScreenSources:
+			m.sources, cmd = m.sources.Update(adjustedMsg)
 		case ScreenStatus:
 			m.status, cmd = m.status.Update(adjustedMsg)
 		}
@@ -130,9 +133,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.feed, cmd = m.feed.Update(msg)
 			return m, cmd
 		}
-		if m.activeScreen == ScreenTopics && (m.topics.freqPicking || m.topics.confirming) {
+		if m.activeScreen == ScreenTopics && (m.topics.freqPicking || m.topics.confirming || m.topics.customAdding) {
 			var cmd tea.Cmd
 			m.topics, cmd = m.topics.Update(msg)
+			return m, cmd
+		}
+		if m.activeScreen == ScreenSources && (m.sources.adding || m.sources.editingCtx || m.sources.freqPicking || m.sources.confirming) {
+			var cmd tea.Cmd
+			m.sources, cmd = m.sources.Update(msg)
 			return m, cmd
 		}
 		if m.activeScreen == ScreenAsk && m.ask.phase != askPhaseDone {
@@ -187,6 +195,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.topics.width = m.width
 			m.topics.height = contentH
 			return m, tea.Batch(m.topics.Init(), m.ensureSpinnerRunning())
+		case ScreenSources:
+			m.sources = NewSourcesModel()
+			m.activeScreen = ScreenSources
+			m.sources.width = m.width
+			m.sources.height = contentH
+			return m, tea.Batch(m.sources.Init(), m.ensureSpinnerRunning())
 		case ScreenStatus:
 			m.status = NewStatusModel()
 			m.activeScreen = ScreenStatus
@@ -262,6 +276,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ask, cmd = m.ask.Update(msg)
 	case ScreenTopics:
 		m.topics, cmd = m.topics.Update(msg)
+	case ScreenSources:
+		m.sources, cmd = m.sources.Update(msg)
 	case ScreenStatus:
 		m.status, cmd = m.status.Update(msg)
 	}
@@ -328,6 +344,8 @@ func (m AppModel) needsAnimation() bool {
 		return m.feed.loading
 	case ScreenAsk:
 		return m.ask.phase == askPhaseSearching || m.ask.phase == askPhaseStreaming
+	case ScreenSources:
+		return m.sources.adding && m.sources.addPhase == addPhaseDiscovering
 	}
 	return false
 }
@@ -353,6 +371,8 @@ func (m AppModel) activeBreadcrumb() []string {
 		return []string{"ASK"}
 	case ScreenTopics:
 		return []string{"TOPICS"}
+	case ScreenSources:
+		return []string{"SOURCES"}
 	case ScreenStatus:
 		return []string{"STATUS"}
 	}
@@ -372,6 +392,8 @@ func (m AppModel) activeContentView() string {
 		return m.ask.ContentView(m.spinnerFrame)
 	case ScreenTopics:
 		return m.topics.ContentView()
+	case ScreenSources:
+		return m.sources.ContentView()
 	case ScreenStatus:
 		return m.status.ContentView()
 	default:
@@ -392,6 +414,8 @@ func (m AppModel) activeStatusHints() []components.KeyHint {
 		return m.ask.StatusHints()
 	case ScreenTopics:
 		return m.topics.StatusHints()
+	case ScreenSources:
+		return m.sources.StatusHints()
 	case ScreenStatus:
 		return m.status.StatusHints()
 	}
@@ -411,8 +435,9 @@ func (m AppModel) renderHelpOverlay(width int) string {
 			{"enter", "open feed for selected topic"},
 			{"a", "ask a question"},
 			{"t", "topics browser"},
-			{"s", "status info"},
+			{"s", "sources (RSS/blogs)"},
 			{"r", "refresh all feeds"},
+			{"i", "system info"},
 			{"?", "close help"},
 			{"q, ctrl+c", "quit"},
 		}
@@ -449,6 +474,15 @@ func (m AppModel) renderHelpOverlay(width int) string {
 			{"enter", "subscribe (available section)"},
 			{"d", "unsubscribe"},
 			{"e", "edit frequency"},
+			{"esc", "back to dashboard"},
+		}
+	case ScreenSources:
+		entries = []helpEntry{
+			{"j/k", "navigate sources"},
+			{"a", "add new source"},
+			{"d", "delete source"},
+			{"e", "edit frequency"},
+			{"c", "edit context"},
 			{"esc", "back to dashboard"},
 		}
 	case ScreenStatus:
