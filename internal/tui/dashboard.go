@@ -30,8 +30,8 @@ type DashboardModel struct {
 	refreshing    bool
 	lastRefresh   time.Time
 	refreshErr    string
-	refreshStatus map[string]string  // per-topic: ""/"⦻"/"✓ +N"/"✗"
-	programRef    *programHolder     // for p.Send in background refresh
+	refreshStatus map[string]string // per-topic: ""/"⦻"/"✓ +N"/"✗"
+	programRef    *programHolder    // for p.Send in background refresh
 }
 
 func NewDashboardModel() DashboardModel {
