@@ -306,14 +306,28 @@ func ActivityBar(unread, total int) string {
 	return StyleMuted.Render(emptyStr)
 }
 
-// LabeledRule renders a horizontal rule with an embedded label: ── Label ──────
+// LabeledRule renders a horizontal rule with an embedded label: >> LABEL ═══════
 func LabeledRule(label string, width int) string {
-	prefix := "── " + label + " "
+	prefix := ">> " + strings.ToUpper(label) + " "
 	remaining := width - utf8.RuneCountInString(prefix)
 	if remaining < 0 {
 		remaining = 0
 	}
-	return StyleMuted.Render(prefix + strings.Repeat("─", remaining))
+	return StyleAccent.Render(prefix + strings.Repeat("═", remaining))
+}
+
+// SectionHeader renders a category section header: >> LABEL // CATEGORY: VALUE
+func SectionHeader(label, category string, width int) string {
+	text := ">> " + strings.ToUpper(label)
+	if category != "" {
+		text += " // CATEGORY: " + strings.ToUpper(category)
+	}
+	return StyleAccent.Render(text)
+}
+
+// DashRule renders a dash separator line for between items.
+func DashRule(width int) string {
+	return StyleMuted.Render(strings.Repeat("─", width))
 }
 
 // DottedRule renders a dotted separator line.
@@ -372,7 +386,7 @@ func RenderStatusBar(hints []components.KeyHint, width int) string {
 	var parts []string
 	for _, h := range hints {
 		key := StyleInvertedKey.Render(" " + h.Key + " ")
-		parts = append(parts, key+" "+StyleMuted.Render(h.Desc))
+		parts = append(parts, key+" "+StyleWarmMuted.Render(h.Desc))
 	}
 
 	content := strings.Join(parts, "  ")

@@ -156,22 +156,22 @@ func (m DetailModel) ContentView() string {
 	// Build the full content first, then apply scroll
 	var lines []string
 
-	// Title
+	// Title — uppercase, bright amber
 	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("  %s", StyleAccent.Render(m.item.Title)))
+	lines = append(lines, fmt.Sprintf("  %s", StyleAccent.Render(strings.ToUpper(m.item.Title))))
 
 	// Separator
 	lines = append(lines, "  "+StyleMuted.Render(strings.Repeat("─", contentWidth)))
 
-	// Meta: source · time · relevance bar
-	meta := fmt.Sprintf("  %s · %s",
-		StyleMuted.Render(m.item.SourceName),
-		StyleMuted.Render(m.item.TimeAgo()),
+	// Meta: uppercase structured — SOURCE: name    TIMESTAMP: time    bar pct
+	meta := fmt.Sprintf("  %s    %s",
+		StyleMuted.Render("SOURCE: "+strings.ToUpper(m.item.SourceName)),
+		StyleMuted.Render("TIMESTAMP: "+strings.ToUpper(m.item.TimeAgo())),
 	)
 	if m.item.RelevanceScore > 0 {
-		meta += fmt.Sprintf(" · %s %s",
+		meta += fmt.Sprintf("    %s %s",
 			RelevanceBar(m.item.RelevanceScore),
-			StyleMuted.Render(fmt.Sprintf("%.0f%%", m.item.RelevanceScore*100)))
+			StyleWarmMuted.Render(fmt.Sprintf("%.0f%%", m.item.RelevanceScore*100)))
 	}
 	lines = append(lines, meta)
 
@@ -184,11 +184,12 @@ func (m DetailModel) ContentView() string {
 	lines = append(lines, "  "+StyleMuted.Render(strings.Repeat("─", contentWidth)))
 	lines = append(lines, "")
 
-	// Summary
+	// Summary — italic warm muted with left border accent
+	border := StyleLeftBorder.Render("│")
 	if m.item.Summary != "" {
-		wrapped := wrapText(m.item.Summary, contentWidth)
+		wrapped := wrapText(m.item.Summary, contentWidth-4)
 		for _, line := range strings.Split(wrapped, "\n") {
-			lines = append(lines, "  "+line)
+			lines = append(lines, fmt.Sprintf("  %s %s", border, StyleSummary.Render(line)))
 		}
 		lines = append(lines, "")
 	}
@@ -197,20 +198,20 @@ func (m DetailModel) ContentView() string {
 	if m.item.Content != "" && m.item.Content != m.item.Summary {
 		lines = append(lines, "  "+LabeledRule("Full content", contentWidth))
 		lines = append(lines, "")
-		wrapped := wrapText(m.item.Content, contentWidth)
+		wrapped := wrapText(m.item.Content, contentWidth-4)
 		for _, line := range strings.Split(wrapped, "\n") {
-			lines = append(lines, "  "+line)
+			lines = append(lines, fmt.Sprintf("  %s %s", border, StyleWarmMuted.Render(line)))
 		}
 		lines = append(lines, "")
 	}
 
-	// Tags with dotted separator
+	// Tags — uppercase, no brackets, with separator
 	if len(m.item.Tags) > 0 {
-		lines = append(lines, "  "+DottedRule(contentWidth))
+		lines = append(lines, "  "+StyleMuted.Render(strings.Repeat("─", contentWidth)))
 		lines = append(lines, "")
 		var tags []string
 		for _, tag := range m.item.Tags {
-			tags = append(tags, StyleTag.Render("#"+tag))
+			tags = append(tags, StyleTag.Render(strings.ToUpper(tag)))
 		}
 		lines = append(lines, "   "+strings.Join(tags, "  "))
 		lines = append(lines, "")
@@ -225,7 +226,7 @@ func (m DetailModel) ContentView() string {
 
 	// Position indicator
 	lines = append(lines, fmt.Sprintf("  %s",
-		StyleMuted.Render(fmt.Sprintf("%d/%d", m.index+1, len(m.items)))))
+		StyleWarmMuted.Render(fmt.Sprintf("%d/%d", m.index+1, len(m.items)))))
 
 	// Clamp scroll
 	totalLines := len(lines)
