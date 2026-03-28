@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oluoyefeso/termiflow/internal/db"
+	tfSync "github.com/oluoyefeso/termiflow/internal/sync"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
@@ -55,6 +57,9 @@ func runUnsubscribe(cmd *cobra.Command, args []string) error {
 	if err := db.DeleteSubscription(topic); err != nil {
 		return fmt.Errorf("failed to unsubscribe: %w", err)
 	}
+
+	// Sync deletion to server (managed mode only, fails silently)
+	tfSync.DeleteSubscription(context.Background(), topic)
 
 	fmt.Print(ui.Success(fmt.Sprintf("Unsubscribed from %s", topic)))
 	fmt.Println()

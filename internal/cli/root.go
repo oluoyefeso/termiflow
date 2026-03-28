@@ -13,6 +13,8 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/notifications"
+	"github.com/oluoyefeso/termiflow/internal/providers"
+	tfSync "github.com/oluoyefeso/termiflow/internal/sync"
 	"github.com/oluoyefeso/termiflow/internal/tui"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 )
@@ -84,6 +86,17 @@ No browser switching, no context loss, no noise. Just signal.`,
 		// Initialize database
 		if err := db.Init(); err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
+		}
+
+		// Initialize sync for managed-mode users
+		if config.IsManagedMode() {
+			mc := providers.NewManagedClient(
+				config.Get().Providers.Managed.APIKey,
+				config.Get().Providers.Managed.BaseURL,
+			)
+			tfSync.Init(mc)
+			// Pull sync if stale (>30m since last sync)
+			tfSync.PullIfStale(context.Background())
 		}
 
 		// Load notification banners and start background fetch
