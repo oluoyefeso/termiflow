@@ -2,6 +2,21 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.10.0] - 2026-03-28 — TUI Sources Screen + Topics Improvements
+
+### Added
+- **TUI Sources management screen**: New screen (`s` from dashboard) for managing RSS/blog source subscriptions entirely within the TUI. Full lifecycle: add source with URL autodiscovery, edit frequency, edit relevance context, delete with confirmation. 4-phase add flow with discovery cancellation support.
+- **Custom topic creation**: Topics "Available" tab now has a `+ Custom topic...` entry at the top. Type any topic string, pick a frequency, and it creates a subscription using Tavily search. No more limitation to the 10 predefined categories.
+- **Category descriptions**: Topics "Available" section now shows the description for each predefined category below the name.
+- **Toggle read/unread**: `m` key in article detail view now toggles between read and unread (previously one-way mark-as-read only). Shows status feedback.
+- **Tag pill borders**: Article tags render with `[ TAG ]` bracket styling instead of plain text.
+
+### Changed
+- **Dashboard key reassignment**: `s` now opens Sources screen, `i` opens system info (previously `s` was status).
+- **Topics screen filters sources**: Source subscriptions (RSS/blogs) no longer appear in the Topics subscribed list. They're managed exclusively in the Sources screen.
+- **Topic names uppercase**: Both subscribed and available topic names render in uppercase.
+- **Dashboard display name fallback**: Subscriptions with empty display names now fall back to domain extraction from the source URL.
+
 ## [0.3.9.0] - 2026-03-28 — Concurrent Subscription Refresh
 
 ### Changed
