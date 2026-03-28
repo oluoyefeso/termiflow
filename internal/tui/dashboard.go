@@ -213,6 +213,10 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return SwitchScreenMsg{Screen: ScreenTopics}
 			}
+		case key.Matches(msg, DashboardKeys.Sources):
+			return m, func() tea.Msg {
+				return SwitchScreenMsg{Screen: ScreenSources}
+			}
 		case key.Matches(msg, DashboardKeys.Status):
 			return m, func() tea.Msg {
 				return SwitchScreenMsg{Screen: ScreenStatus}
@@ -238,8 +242,9 @@ func (m DashboardModel) StatusHints() []components.KeyHint {
 		{Key: "enter", Desc: "feed"},
 		{Key: "a", Desc: "ask"},
 		{Key: "t", Desc: "topics"},
+		{Key: "s", Desc: "sources"},
 		{Key: "r", Desc: "refresh"},
-		{Key: "s", Desc: "status"},
+		{Key: "i", Desc: "info"},
 	}
 }
 
@@ -299,7 +304,7 @@ func (m DashboardModel) renderSubscriptions(width int) string {
 	// Calculate column widths (visual width for Unicode safety)
 	topicWidth := 20
 	for _, info := range m.subs {
-		w := lipgloss.Width(info.Sub.Topic)
+		w := lipgloss.Width(dashSubDisplayName(info))
 		if w > topicWidth {
 			topicWidth = w
 		}
@@ -315,7 +320,7 @@ func (m DashboardModel) renderSubscriptions(width int) string {
 		}
 
 		// Topic name — uppercase (padded)
-		topic := PadRight(topicStyle.Render(strings.ToUpper(info.Sub.Topic)), topicWidth)
+		topic := PadRight(topicStyle.Render(strings.ToUpper(dashSubDisplayName(info))), topicWidth)
 
 		// Activity bar or refresh status
 		var statusCol string
@@ -411,4 +416,18 @@ func (m DashboardModel) renderZeroState(width int) string {
 	}
 
 	return "\n" + RenderCard("GET STARTED", lines, width-4) + "\n"
+}
+
+// dashSubDisplayName returns the best display name for a subscription on the dashboard.
+func dashSubDisplayName(info SubInfo) string {
+	if info.Sub.DisplayName != "" {
+		return info.Sub.DisplayName
+	}
+	if info.Sub.Topic != "" {
+		return info.Sub.Topic
+	}
+	if info.Sub.SourceURL != "" {
+		return sourceDomainFromURL(info.Sub.SourceURL)
+	}
+	return "(unnamed)"
 }
