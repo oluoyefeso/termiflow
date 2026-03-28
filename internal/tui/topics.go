@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -37,12 +38,17 @@ type TopicsModel struct {
 	freqAction  string // "subscribe" or "edit"
 	freqTopic   string // topic being acted on
 	confirming  bool   // showing delete confirmation
+	customAdding bool           // showing custom topic text input
+	customInput  textinput.Model // text input for custom topic name
 }
 
 var frequencies = []string{"hourly", "daily", "weekly"}
 
 func NewTopicsModel() TopicsModel {
-	return TopicsModel{loading: true}
+	ti := textinput.New()
+	ti.Placeholder = "e.g., nvidia chip stocks, golang concurrency..."
+	ti.CharLimit = 200
+	return TopicsModel{loading: true, customInput: ti}
 }
 
 func loadTopics() tea.Cmd {
@@ -55,6 +61,10 @@ func loadTopics() tea.Cmd {
 		var subInfos []SubInfo
 		subscribedNames := make(map[string]bool)
 		for _, sub := range subs {
+			// Source subscriptions are managed in the Sources screen
+			if sub.IsSourceSubscription() {
+				continue
+			}
 			subscribedNames[sub.Topic] = true
 			total, unread, err := db.GetSubscriptionItemCount(sub.ID)
 			if err != nil {
@@ -83,6 +93,15 @@ func (m TopicsModel) Init() tea.Cmd {
 }
 
 func (m TopicsModel) Update(msg tea.Msg) (TopicsModel, tea.Cmd) {
+	// Forward non-key messages to textinput when custom adding (for blink cursor)
+	if m.customAdding {
+		if _, ok := msg.(tea.KeyMsg); !ok {
+			var cmd tea.Cmd
+			m.customInput, cmd = m.customInput.Update(msg)
+			return m, cmd
+		}
+	}
+
 	switch msg := msg.(type) {
 	case TopicsLoadedMsg:
 		m.loading = false
@@ -123,6 +142,9 @@ func (m TopicsModel) Update(msg tea.Msg) (TopicsModel, tea.Cmd) {
 		return m, loadTopics()
 
 	case tea.KeyMsg:
+		if m.customAdding {
+			return m.updateCustomInput(msg)
+		}
 		if m.freqPicking {
 			return m.updateFreqPicker(msg)
 		}
@@ -162,11 +184,22 @@ func (m *TopicsModel) updateNormal(msg tea.KeyMsg) (TopicsModel, tea.Cmd) {
 		m.cursor = 0
 		m.statusMsg = ""
 	case key.Matches(msg, TopicsKeys.Enter):
-		if m.section == sectionAvailable && m.cursor < len(m.available) {
-			m.freqPicking = true
-			m.freqCursor = 1 // default daily
-			m.freqAction = "subscribe"
-			m.freqTopic = m.available[m.cursor].Name
+		if m.section == sectionAvailable {
+			if m.cursor == 0 {
+				// "+ Custom topic..." entry
+				m.customAdding = true
+				m.customInput.Reset()
+				m.customInput.Focus()
+				return *m, textinput.Blink
+			}
+			// Predefined categories (offset by 1 for custom entry)
+			catIdx := m.cursor - 1
+			if catIdx < len(m.available) {
+				m.freqPicking = true
+				m.freqCursor = 1 // default daily
+				m.freqAction = "subscribe"
+				m.freqTopic = m.available[catIdx].Name
+			}
 		}
 	case key.Matches(msg, TopicsKeys.Delete):
 		if m.section == sectionSubscribed && m.cursor < len(m.subscribed) {
@@ -231,11 +264,34 @@ func (m *TopicsModel) updateConfirm(msg tea.KeyMsg) (TopicsModel, tea.Cmd) {
 	return *m, nil
 }
 
+func (m *TopicsModel) updateCustomInput(msg tea.KeyMsg) (TopicsModel, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		topic := strings.TrimSpace(m.customInput.Value())
+		if topic == "" {
+			return *m, nil
+		}
+		m.customAdding = false
+		m.freqPicking = true
+		m.freqCursor = 1 // default daily
+		m.freqAction = "subscribe"
+		m.freqTopic = topic
+	case "esc":
+		m.customAdding = false
+	default:
+		var cmd tea.Cmd
+		m.customInput, cmd = m.customInput.Update(msg)
+		return *m, cmd
+	}
+	return *m, nil
+}
+
 func (m TopicsModel) currentListLen() int {
 	if m.section == sectionSubscribed {
 		return len(m.subscribed)
 	}
-	return len(m.available)
+	// +1 for the "+ Custom topic..." entry at index 0
+	return len(m.available) + 1
 }
 
 func subscribeTopic(topic, frequency string) tea.Cmd {
@@ -308,6 +364,18 @@ func (m TopicsModel) ContentView() string {
 		return b.String()
 	}
 
+	// Custom topic input overlay
+	if m.customAdding {
+		fmt.Fprintf(&b, "\n  %s\n\n", StyleAccent.Render("Custom Topic"))
+		b.WriteString("  Enter a topic to follow:\n\n")
+		fmt.Fprintf(&b, "  %s\n\n", m.customInput.View())
+		fmt.Fprintf(&b, "  %s to continue, %s to cancel\n",
+			StyleTitle.Render("Enter"),
+			StyleMuted.Render("Esc"),
+		)
+		return b.String()
+	}
+
 	// Frequency picker overlay
 	if m.freqPicking {
 		b.WriteString(m.renderFreqPicker())
@@ -368,39 +436,48 @@ func (m TopicsModel) ContentView() string {
 			if info.Sub.DisplayName != "" {
 				displayTopic = info.Sub.DisplayName
 			}
-			topic := PadRight(nameStyle.Render(displayTopic), topicWidth)
-
-			// Show [feed] or [scrape] tag for source subscriptions
-			typeTag := "      "
-			if info.Sub.IsSourceSubscription() {
-				typeTag = StyleMuted.Render(fmt.Sprintf("[%s]", info.Sub.SourceType))
-				typeTag = PadRight(typeTag, 6)
-			}
+			topic := PadRight(nameStyle.Render(strings.ToUpper(displayTopic)), topicWidth)
 
 			freq := PadRight(StyleMuted.Render(info.Sub.Frequency), 8)
 			items := PadLeft(fmt.Sprintf("%d items", info.Total), 9)
 			unread := PadLeft(fmt.Sprintf("%d unread", info.Unread), 10)
 
-			fmt.Fprintf(&b, "  %s%s %s %s %s  %s\n",
-				cursor, topic, typeTag, freq, items, unread)
+			fmt.Fprintf(&b, "  %s%s %s %s  %s\n",
+				cursor, topic, freq, items, unread)
 		}
 	} else {
+		// "+ Custom topic..." entry at index 0
+		{
+			cursor := "  "
+			nameStyle := StyleCyan
+			if m.cursor == 0 {
+				cursor = StyleSelectedIndicator.Render("▸ ")
+				nameStyle = lipgloss.NewStyle().Bold(true).Foreground(ColorCyan)
+			}
+			fmt.Fprintf(&b, "  %s%s\n", cursor, nameStyle.Render("+ Custom topic..."))
+		}
+
 		if len(m.available) == 0 {
-			b.WriteString(StyleMuted.Render("  All categories subscribed!\n"))
+			b.WriteString(StyleMuted.Render("\n  All predefined categories subscribed!\n"))
 		}
 		for i, cat := range m.available {
 			cursor := "  "
 			nameStyle := lipgloss.NewStyle()
-			if i == m.cursor {
+			// Offset by 1 for the custom entry
+			if i+1 == m.cursor {
 				cursor = StyleSelectedIndicator.Render("▸ ")
 				nameStyle = StyleSelected
 			}
 
-			topic := PadRight(nameStyle.Render(cat.Name), topicWidth)
+			topic := PadRight(nameStyle.Render(strings.ToUpper(cat.Name)), topicWidth)
 			fmt.Fprintf(&b, "  %s%s %s\n",
 				cursor, topic,
 				StyleMuted.Render(cat.DisplayName),
 			)
+			// Show description on next line
+			if cat.Description != "" {
+				fmt.Fprintf(&b, "      %s\n", StyleWarmMuted.Render(cat.Description))
+			}
 		}
 	}
 
