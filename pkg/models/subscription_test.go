@@ -156,9 +156,9 @@ func TestSubscription_IsSourceSubscription(t *testing.T) {
 
 func TestSubscription_ScoringTopic(t *testing.T) {
 	tests := []struct {
-		name       string
-		sub        Subscription
-		want       string
+		name string
+		sub  Subscription
+		want string
 	}{
 		{"topic sub uses Topic", Subscription{Topic: "rust-lang", SourceType: "topic"}, "rust-lang"},
 		{"empty source_type uses Topic", Subscription{Topic: "go-lang"}, "go-lang"},
