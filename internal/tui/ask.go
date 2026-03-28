@@ -335,23 +335,23 @@ func (m AskModel) ContentView(spinnerFrame int) string {
 	switch m.phase {
 	case askPhaseInput:
 		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render(">"), m.input.View()))
+		fmt.Fprintf(&b, "  %s %s\n", StyleTitle.Render(">"), m.input.View())
 		b.WriteString("\n")
 		b.WriteString(StyleMuted.Render("  Type a question and press Enter."))
 		b.WriteString("\n")
 
 	case askPhaseSearching:
 		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render("Q:"), m.question))
+		fmt.Fprintf(&b, "  %s %s\n", StyleTitle.Render("Q:"), m.question)
 		b.WriteString("\n")
 		dots := AnimatedDots(spinnerFrame)
-		b.WriteString(fmt.Sprintf("  %s Searching%s\n",
+		fmt.Fprintf(&b, "  %s Searching%s\n",
 			AnimatedSpinner(spinnerFrame),
-			StyleCyan.Render(dots)))
+			StyleCyan.Render(dots))
 
 	case askPhaseStreaming, askPhaseDone:
 		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render("Q:"), m.question))
+		fmt.Fprintf(&b, "  %s %s\n", StyleTitle.Render("Q:"), m.question)
 		b.WriteString("\n")
 
 		// Horizontal rule between Q and answer
@@ -450,7 +450,7 @@ func buildAskPrompt(question string, sources []AskSource) string {
 	if len(sources) > 0 {
 		sb.WriteString("Use the following sources to inform your answer:\n\n")
 		for i, src := range sources {
-			sb.WriteString(fmt.Sprintf("Source %d: %s\nURL: %s\n\n", i+1, src.Title, src.URL))
+			fmt.Fprintf(&sb, "Source %d: %s\nURL: %s\n\n", i+1, src.Title, src.URL)
 		}
 		sb.WriteString("---\n\n")
 	}
@@ -484,15 +484,15 @@ func saveAskResult(question, answer string, sources []AskSource) tea.Cmd {
 		path := filepath.Join(saveDir, filename)
 
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("## %s\n\n", question))
-		sb.WriteString(fmt.Sprintf("*%s*\n\n", ts.Format("2006-01-02 15:04")))
+		fmt.Fprintf(&sb, "## %s\n\n", question)
+		fmt.Fprintf(&sb, "*%s*\n\n", ts.Format("2006-01-02 15:04"))
 		sb.WriteString(answer)
 		sb.WriteString("\n")
 
 		if len(sources) > 0 {
 			sb.WriteString("\n### Sources\n\n")
 			for i, src := range sources {
-				sb.WriteString(fmt.Sprintf("%d. [%s](%s)\n", i+1, src.Title, src.URL))
+				fmt.Fprintf(&sb, "%d. [%s](%s)\n", i+1, src.Title, src.URL)
 			}
 		}
 
@@ -527,18 +527,18 @@ func buildUserContext() string {
 		sb.WriteString("Mode: Managed (using termiflow API)\n")
 	} else {
 		cfg := config.Get()
-		sb.WriteString(fmt.Sprintf("Mode: Self-hosted (provider: %s)\n", cfg.General.DefaultProvider))
+		fmt.Fprintf(&sb, "Mode: Self-hosted (provider: %s)\n", cfg.General.DefaultProvider)
 	}
 
-	sb.WriteString(fmt.Sprintf("Subscriptions: %d active\n", len(subs)))
+	fmt.Fprintf(&sb, "Subscriptions: %d active\n", len(subs))
 	for _, sub := range subs {
 		total, unread, _ := db.GetSubscriptionItemCount(sub.ID)
 		lastFetch := "never"
 		if sub.LastFetchedAt != nil {
 			lastFetch = sub.LastFetchedAt.Format("2006-01-02 15:04")
 		}
-		sb.WriteString(fmt.Sprintf("- %s (%s, %d items, %d unread, last fetched: %s)\n",
-			sub.Topic, sub.Frequency, total, unread, lastFetch))
+		fmt.Fprintf(&sb, "- %s (%s, %d items, %d unread, last fetched: %s)\n",
+			sub.Topic, sub.Frequency, total, unread, lastFetch)
 	}
 	return sb.String()
 }

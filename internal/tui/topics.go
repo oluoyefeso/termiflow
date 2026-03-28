@@ -317,11 +317,11 @@ func (m TopicsModel) ContentView() string {
 	// Delete confirmation
 	if m.confirming && m.cursor < len(m.subscribed) {
 		topic := m.subscribed[m.cursor].Sub.Topic
-		b.WriteString(fmt.Sprintf("\n  Unsubscribe from %s?\n\n", StyleAccent.Render(topic)))
-		b.WriteString(fmt.Sprintf("  %s / %s\n",
+		fmt.Fprintf(&b, "\n  Unsubscribe from %s?\n\n", StyleAccent.Render(topic))
+		fmt.Fprintf(&b, "  %s / %s\n",
 			StyleTitle.Render("[y] yes"),
 			StyleMuted.Render("[n] no"),
-		))
+		)
 		return b.String()
 	}
 
@@ -333,7 +333,7 @@ func (m TopicsModel) ContentView() string {
 	} else {
 		availTab = StyleAccent.Render("▸ AVAILABLE")
 	}
-	b.WriteString(fmt.Sprintf("\n  %s    %s\n\n", subTab, availTab))
+	fmt.Fprintf(&b, "\n  %s    %s\n\n", subTab, availTab)
 
 	// Calculate column widths
 	topicWidth := 20
@@ -367,8 +367,8 @@ func (m TopicsModel) ContentView() string {
 			items := PadLeft(fmt.Sprintf("%d items", info.Total), 9)
 			unread := PadLeft(fmt.Sprintf("%d unread", info.Unread), 10)
 
-			b.WriteString(fmt.Sprintf("  %s%s %s %s  %s\n",
-				cursor, topic, freq, items, unread))
+			fmt.Fprintf(&b, "  %s%s %s %s  %s\n",
+				cursor, topic, freq, items, unread)
 		}
 	} else {
 		if len(m.available) == 0 {
@@ -383,16 +383,16 @@ func (m TopicsModel) ContentView() string {
 			}
 
 			topic := PadRight(nameStyle.Render(cat.Name), topicWidth)
-			b.WriteString(fmt.Sprintf("  %s%s %s\n",
+			fmt.Fprintf(&b, "  %s%s %s\n",
 				cursor, topic,
 				StyleMuted.Render(cat.DisplayName),
-			))
+			)
 		}
 	}
 
 	// Status message
 	if m.statusMsg != "" {
-		b.WriteString(fmt.Sprintf("\n  %s\n", StyleSuccess.Render("✓ "+m.statusMsg)))
+		fmt.Fprintf(&b, "\n  %s\n", StyleSuccess.Render("✓ "+m.statusMsg))
 	}
 
 	return b.String()
@@ -404,7 +404,7 @@ func (m TopicsModel) renderFreqPicker() string {
 	if m.freqAction == "edit" {
 		action = "Set frequency for"
 	}
-	b.WriteString(fmt.Sprintf("\n  %s %s\n\n", action, StyleAccent.Render(m.freqTopic)))
+	fmt.Fprintf(&b, "\n  %s %s\n\n", action, StyleAccent.Render(m.freqTopic))
 	b.WriteString("  Choose frequency:\n\n")
 	for i, f := range frequencies {
 		cursor := "  "
@@ -413,11 +413,11 @@ func (m TopicsModel) renderFreqPicker() string {
 			cursor = StyleSelectedIndicator.Render("▸ ")
 			style = StyleSelected
 		}
-		b.WriteString(fmt.Sprintf("  %s%s\n", cursor, style.Render(f)))
+		fmt.Fprintf(&b, "  %s%s\n", cursor, style.Render(f))
 	}
-	b.WriteString(fmt.Sprintf("\n  %s to confirm, %s to cancel\n",
+	fmt.Fprintf(&b, "\n  %s to confirm, %s to cancel\n",
 		StyleTitle.Render("Enter"),
 		StyleMuted.Render("Esc"),
-	))
+	)
 	return b.String()
 }
