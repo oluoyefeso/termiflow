@@ -46,14 +46,14 @@ func Section(title string, count int, countLabel string) string {
 	if count > 0 {
 		countStr = fmt.Sprintf("%d %s", count, strings.ToUpper(countLabel))
 	}
-	dashWidth := lineWidth - len(label) - len(countStr) - 3
-	if dashWidth < 1 {
-		dashWidth = 1
+	prefix := ">> " + label + " "
+	remaining := lineWidth - len(prefix) - len(countStr) - 1
+	if remaining < 1 {
+		remaining = 1
 	}
-	return fmt.Sprintf("\n %s %s %s\n",
-		TitleStyle.Render("▸"),
-		AccentStyle.Render(label),
-		MutedStyle.Render(bar("─", dashWidth)+" "+countStr),
+	return fmt.Sprintf("\n%s%s\n",
+		AccentStyle.Render(prefix+bar("═", remaining)),
+		MutedStyle.Render(" "+countStr),
 	)
 }
 
@@ -134,32 +134,35 @@ func Tags(tags []string) string {
 	}
 	var parts []string
 	for _, tag := range tags {
-		parts = append(parts, TagStyle.Render("["+tag+"]"))
+		parts = append(parts, TagStyle.Render(strings.ToUpper(tag)))
 	}
-	return strings.Join(parts, " ")
+	return strings.Join(parts, "  ")
 }
+
+// warmMutedItalic is an italic warm muted style for CLI summary text.
+var warmMutedItalic = lipgloss.NewStyle().Italic(true).Foreground(Secondary)
 
 func FormatFeedItem(title, source, timeAgo, summary string, tags []string) string {
 	var b strings.Builder
 
-	// Title — amber, bold, no indent bloat
-	fmt.Fprintf(&b, "  %s\n", AccentStyle.Render(title))
+	// Title — uppercase, amber, bold
+	fmt.Fprintf(&b, "  %s\n", AccentStyle.Render(strings.ToUpper(title)))
 
-	// Source | time on same line, compact
-	fmt.Fprintf(&b, "  %s  %s\n",
-		MutedStyle.Render(source),
-		MutedStyle.Render(timeAgo),
-	)
-
-	// Summary — slightly indented, wrapped
+	// Summary — italic warm muted
 	if summary != "" {
 		wrapped := WrapText(summary, 65)
 		for _, line := range strings.Split(wrapped, "\n") {
-			fmt.Fprintf(&b, "  %s\n", MutedStyle.Render(line))
+			fmt.Fprintf(&b, "  %s\n", warmMutedItalic.Render(line))
 		}
 	}
 
-	// Tags — inline, compact
+	// Meta — uppercase structured
+	fmt.Fprintf(&b, "  %s    %s\n",
+		MutedStyle.Render("SOURCE: "+strings.ToUpper(source)),
+		MutedStyle.Render("TIMESTAMP: "+strings.ToUpper(timeAgo)),
+	)
+
+	// Tags — uppercase, no brackets
 	if len(tags) > 0 {
 		fmt.Fprintf(&b, "  %s\n", Tags(tags))
 	}

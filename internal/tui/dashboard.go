@@ -309,8 +309,8 @@ func (m DashboardModel) renderSubscriptions(width int) string {
 			topicStyle = StyleSelected
 		}
 
-		// Topic name (padded)
-		topic := PadRight(topicStyle.Render(info.Sub.Topic), topicWidth)
+		// Topic name — uppercase (padded)
+		topic := PadRight(topicStyle.Render(strings.ToUpper(info.Sub.Topic)), topicWidth)
 
 		// Activity bar or refresh status
 		var statusCol string
@@ -332,10 +332,10 @@ func (m DashboardModel) renderSubscriptions(width int) string {
 			unreadStr = StyleUnreadBadge.Render(PadLeft(fmt.Sprintf("%d new", info.Unread), 6))
 		}
 
-		// Frequency
-		freq := StyleMuted.Render(PadRight(info.Sub.Frequency, 7))
+		// Frequency — warm muted
+		freq := StyleWarmMuted.Render(PadRight(info.Sub.Frequency, 7))
 
-		// Last fetch time
+		// Last fetch time — warm muted
 		lastFetch := StyleMuted.Render("  ─   ")
 		if info.Sub.LastFetchedAt != nil {
 			ago := time.Since(*info.Sub.LastFetchedAt)
@@ -347,7 +347,7 @@ func (m DashboardModel) renderSubscriptions(width int) string {
 			} else if ago > time.Minute {
 				label = fmt.Sprintf("%dm ago", int(ago.Minutes()))
 			}
-			lastFetch = StyleMuted.Render(PadLeft(label, 7))
+			lastFetch = StyleWarmMuted.Render(PadLeft(label, 7))
 		}
 
 		fmt.Fprintf(&b, "  %s%s %s  %s  %s  %s\n",
@@ -361,7 +361,7 @@ func (m DashboardModel) renderActivityFooter(width int) string {
 	var b strings.Builder
 
 	b.WriteString("\n")
-	b.WriteString("  " + LabeledRule("Activity", width-4))
+	b.WriteString(LabeledRule("Activity", width-2))
 	b.WriteString("\n")
 
 	// Refresh status
@@ -376,7 +376,7 @@ func (m DashboardModel) renderActivityFooter(width int) string {
 			label = fmt.Sprintf("%dm ago", int(ago.Minutes()))
 		}
 		fmt.Fprintf(&b, "  %s Last refreshed %s\n",
-			StyleSuccess.Render("✓"), StyleMuted.Render(label))
+			StyleSuccess.Render("✓"), StyleWarmMuted.Render(label))
 	}
 
 	// Next auto-refresh
