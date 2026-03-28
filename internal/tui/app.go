@@ -35,17 +35,20 @@ type AppModel struct {
 	banners      []BannerMsg
 	showHelp     bool
 	totalUnread  int
+	subCount     int
 	lastRefresh  time.Time
 	spinnerFrame int
+	headerInfo   HeaderInfo
 	programRef   *programHolder // shared ref, set in Run() before p.Run()
 }
 
 // NewAppModel creates the root app model with optional notification banners.
-func NewAppModel(banners []BannerMsg) AppModel {
+func NewAppModel(banners []BannerMsg, version string) AppModel {
 	return AppModel{
 		activeScreen: ScreenDashboard,
 		dashboard:    NewDashboardModel(),
 		banners:      banners,
+		headerInfo:   NewHeaderInfo(version),
 	}
 }
 
@@ -179,8 +182,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case SubscriptionsLoadedMsg:
-		// Track total unread for header badge
+		// Track total unread and sub count for header
 		m.totalUnread = 0
+		m.subCount = len(msg.Subs)
 		for _, s := range msg.Subs {
 			m.totalUnread += s.Unread
 		}
@@ -241,9 +245,9 @@ func (m AppModel) View() string {
 		b.WriteString("\n")
 	}
 
-	// 2. Persistent header with breadcrumb
+	// 2. Persistent header with ASCII logo + stats
 	breadcrumb := m.activeBreadcrumb()
-	b.WriteString(RenderHeader(w, breadcrumb, m.totalUnread, m.lastRefresh))
+	b.WriteString(RenderHeader(w, breadcrumb, m.totalUnread, m.subCount, m.lastRefresh, m.headerInfo))
 	b.WriteString("\n")
 
 	// 3. Help overlay OR screen content
@@ -455,9 +459,9 @@ func (m AppModel) renderHelpOverlay(width int) string {
 }
 
 // Run starts the Bubble Tea program.
-func Run(banners []BannerMsg) error {
+func Run(banners []BannerMsg, version string) error {
 	holder := &programHolder{}
-	model := NewAppModel(banners)
+	model := NewAppModel(banners, version)
 	model.programRef = holder
 	model.dashboard.programRef = holder
 	p := tea.NewProgram(model, tea.WithAltScreen())

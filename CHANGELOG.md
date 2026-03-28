@@ -2,6 +2,18 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.4.0] - 2026-03-28 — Rich ASCII Header + Status Card Fix
+
+### Added
+- **ASCII art header on every screen**: Box-drawing style "TERMIFLOW" logo with mode, endpoint, subscription count, unread badge, refresh status, and version displayed alongside. Replaces the sparse one-line header.
+- **Narrow terminal fallback**: Terminals under ~50 columns get a compact text-only header instead of the ASCII logo to prevent layout corruption.
+- **`HeaderInfo` struct**: Config values (mode, endpoint, version) are read once at TUI init instead of on every render frame, eliminating unnecessary config reads on the hot path.
+
+### Fixed
+- **Status card right-border clipping**: Long file paths (database, config) that exceeded the card's inner width now truncate with `...` instead of pushing the right border off-screen.
+- **Card truncation guard**: `RenderCard` no longer attempts truncation when `contentArea < 3`, preventing garbled output on very small terminals.
+- **Logo width measurement**: Now computes max visual width across all 3 logo lines instead of assuming line 0 is widest.
+
 ## [0.3.3.0] - 2026-03-28 — errcheck Linter + Ask Context Injection
 
 ### Added
