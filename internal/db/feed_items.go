@@ -166,6 +166,17 @@ func MarkItemRead(id int64) error {
 	return err
 }
 
+func ToggleItemRead(id int64) (bool, error) {
+	var isRead bool
+	err := db.QueryRow(`SELECT is_read FROM feed_items WHERE id = ?`, id).Scan(&isRead)
+	if err != nil {
+		return false, err
+	}
+	newVal := !isRead
+	_, err = db.Exec(`UPDATE feed_items SET is_read = ? WHERE id = ?`, newVal, id)
+	return newVal, err
+}
+
 func MarkItemsRead(ids []int64) error {
 	if len(ids) == 0 {
 		return nil

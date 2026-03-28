@@ -25,6 +25,7 @@ type DashboardKeyMap struct {
 	Ask     key.Binding
 	Topics  key.Binding
 	Refresh key.Binding
+	Sources key.Binding
 	Status  key.Binding
 	Up      key.Binding
 	Down    key.Binding
@@ -47,9 +48,13 @@ var DashboardKeys = DashboardKeyMap{
 		key.WithKeys("r"),
 		key.WithHelp("r", "refresh"),
 	),
-	Status: key.NewBinding(
+	Sources: key.NewBinding(
 		key.WithKeys("s"),
-		key.WithHelp("s", "status"),
+		key.WithHelp("s", "sources"),
+	),
+	Status: key.NewBinding(
+		key.WithKeys("i", "I"),
+		key.WithHelp("i", "info"),
 	),
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
@@ -199,6 +204,48 @@ var TopicsKeys = TopicsKeyMap{
 	Tab: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "switch section"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("k", "up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("j", "down"),
+	),
+}
+
+// SourcesKeyMap defines keys for the sources management screen.
+type SourcesKeyMap struct {
+	Add         key.Binding
+	Delete      key.Binding
+	EditFreq    key.Binding
+	EditContext key.Binding
+	Back        key.Binding
+	Up          key.Binding
+	Down        key.Binding
+}
+
+var SourcesKeys = SourcesKeyMap{
+	Add: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "add source"),
+	),
+	Delete: key.NewBinding(
+		key.WithKeys("d"),
+		key.WithHelp("d", "delete"),
+	),
+	EditFreq: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "edit frequency"),
+	),
+	EditContext: key.NewBinding(
+		key.WithKeys("c"),
+		key.WithHelp("c", "edit context"),
 	),
 	Back: key.NewBinding(
 		key.WithKeys("esc"),

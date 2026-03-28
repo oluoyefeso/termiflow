@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/oluoyefeso/termiflow/pkg/models"
+import (
+	"github.com/oluoyefeso/termiflow/internal/sources"
+	"github.com/oluoyefeso/termiflow/pkg/models"
+)
 
 // Screen identifiers for routing.
 type Screen int
@@ -12,6 +15,7 @@ const (
 	ScreenAsk
 	ScreenTopics
 	ScreenStatus
+	ScreenSources
 )
 
 // Navigation messages
@@ -73,6 +77,13 @@ type FeedItemsLoadedMsg struct {
 // ItemMarkedReadMsg signals that an item was marked as read.
 type ItemMarkedReadMsg struct {
 	ItemID int64
+	Err    error
+}
+
+// ItemReadToggledMsg signals that an item's read state was toggled.
+type ItemReadToggledMsg struct {
+	ItemID int64
+	IsRead bool
 	Err    error
 }
 
@@ -170,4 +181,45 @@ type SaveFlashExpiredMsg struct{}
 type HealthCheckMsg struct {
 	Status string // "ok", "degraded", "unknown"
 	Err    error
+}
+
+// Sources screen messages
+
+// SourceInfo holds a source subscription with item counts and domain.
+type SourceInfo struct {
+	Sub    *models.Subscription
+	Total  int
+	Unread int
+	Domain string
+}
+
+// SourcesLoadedMsg carries source subscription data after a DB fetch.
+type SourcesLoadedMsg struct {
+	Sources []SourceInfo
+	Err     error
+}
+
+// SourceDiscoveredMsg carries autodiscovery results for a URL.
+type SourceDiscoveredMsg struct {
+	Info   *sources.FeedInfo
+	RawURL string
+	Err    error
+}
+
+// SourceAddedMsg signals that a new source subscription was created.
+type SourceAddedMsg struct {
+	Name string
+	Err  error
+}
+
+// SourceRemovedMsg signals that a source subscription was deleted.
+type SourceRemovedMsg struct {
+	Name string
+	Err  error
+}
+
+// SourceUpdatedMsg signals that a source subscription was updated.
+type SourceUpdatedMsg struct {
+	Name string
+	Err  error
 }
