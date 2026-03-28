@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	engine "github.com/oluoyefeso/termiflow-engine"
@@ -184,6 +185,59 @@ func (s *Scheduler) RefreshAllSubscriptions(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+// RefreshAllSubscriptionsConcurrent refreshes all due subscriptions concurrently,
+// bounded by maxConcurrent goroutines. The onResult callback fires once per subscription
+// with the topic name, new item count, and any error (thread-safe for bubbletea p.Send).
+func (s *Scheduler) RefreshAllSubscriptionsConcurrent(ctx context.Context, maxConcurrent int, onResult func(topic string, newItems int, err error)) error {
+	subs, err := db.GetActiveSubscriptions()
+	if err != nil {
+		return err
+	}
+
+	var toRefresh []*models.Subscription
+	for _, sub := range subs {
+		if shouldRefresh(sub) {
+			toRefresh = append(toRefresh, sub)
+		}
+	}
+
+	if len(toRefresh) == 0 {
+		return nil
+	}
+
+	if maxConcurrent <= 0 {
+		maxConcurrent = 1
+	}
+
+	sem := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+
+	for _, sub := range toRefresh {
+		wg.Add(1)
+		sem <- struct{}{}
+
+		go func(sub *models.Subscription) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			defer func() {
+				if r := recover(); r != nil {
+					if onResult != nil {
+						onResult(sub.Topic, 0, fmt.Errorf("panic during refresh: %v", r))
+					}
+				}
+			}()
+
+			newItems, err := s.RefreshSubscription(ctx, sub)
+			if onResult != nil {
+				onResult(sub.Topic, len(newItems), err)
+			}
+		}(sub)
+	}
+
+	wg.Wait()
 	return nil
 }
 

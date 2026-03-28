@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -61,7 +62,8 @@ func loadSubscriptions() tea.Msg {
 	return SubscriptionsLoadedMsg{Subs: infos}
 }
 
-// refreshAllFeeds refreshes all subscriptions, sending PerTopicRefreshMsg per topic.
+// refreshAllFeeds refreshes all subscriptions concurrently (max 2),
+// sending PerTopicRefreshMsg per topic as each completes.
 func refreshAllFeeds(p *tea.Program) tea.Cmd {
 	return func() tea.Msg {
 		cfg := config.Get()
@@ -70,26 +72,29 @@ func refreshAllFeeds(p *tea.Program) tea.Cmd {
 			return AllRefreshDoneMsg{Err: err}
 		}
 
-		subs, err := db.GetActiveSubscriptions()
+		var totalNew int
+		var errCount int
+		var mu sync.Mutex
+
+		err = sched.RefreshAllSubscriptionsConcurrent(context.Background(), 2, func(topic string, newItems int, subErr error) {
+			mu.Lock()
+			if subErr != nil {
+				errCount++
+			} else {
+				totalNew += newItems
+			}
+			mu.Unlock()
+
+			if p != nil {
+				if subErr != nil {
+					p.Send(PerTopicRefreshMsg{Topic: topic, Err: subErr})
+				} else {
+					p.Send(PerTopicRefreshMsg{Topic: topic, NewItems: newItems})
+				}
+			}
+		})
 		if err != nil {
 			return AllRefreshDoneMsg{Err: err}
-		}
-
-		totalNew := 0
-		errCount := 0
-		for _, sub := range subs {
-			newItems, err := sched.RefreshSubscription(context.Background(), sub)
-			if err != nil {
-				errCount++
-				if p != nil {
-					p.Send(PerTopicRefreshMsg{Topic: sub.Topic, Err: err})
-				}
-				continue
-			}
-			totalNew += len(newItems)
-			if p != nil {
-				p.Send(PerTopicRefreshMsg{Topic: sub.Topic, NewItems: len(newItems)})
-			}
 		}
 
 		return AllRefreshDoneMsg{TotalNew: totalNew, Errors: errCount}
