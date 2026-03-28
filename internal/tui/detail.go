@@ -41,6 +41,13 @@ func markItemRead(id int64) tea.Cmd {
 	}
 }
 
+func toggleItemRead(id int64) tea.Cmd {
+	return func() tea.Msg {
+		newState, err := db.ToggleItemRead(id)
+		return ItemReadToggledMsg{ItemID: id, IsRead: newState, Err: err}
+	}
+}
+
 func (m DetailModel) Init() tea.Cmd {
 	if m.item != nil && !m.item.IsRead {
 		return markItemRead(m.item.ID)
@@ -53,6 +60,21 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 	case ItemMarkedReadMsg:
 		if msg.Err == nil && m.item != nil && m.item.ID == msg.ItemID {
 			m.item.IsRead = true
+		}
+		return m, nil
+
+	case ItemReadToggledMsg:
+		if msg.Err != nil {
+			m.statusMsg = "Failed to toggle read state"
+			return m, nil
+		}
+		if m.item != nil && m.item.ID == msg.ItemID {
+			m.item.IsRead = msg.IsRead
+			if msg.IsRead {
+				m.statusMsg = "Marked as read"
+			} else {
+				m.statusMsg = "Marked as unread"
+			}
 		}
 		return m, nil
 
@@ -77,8 +99,8 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, DetailKeys.MarkRead):
-			if m.item != nil && !m.item.IsRead {
-				return m, markItemRead(m.item.ID)
+			if m.item != nil {
+				return m, toggleItemRead(m.item.ID)
 			}
 		case key.Matches(msg, DetailKeys.Next):
 			if m.index < len(m.items)-1 {
@@ -205,15 +227,16 @@ func (m DetailModel) ContentView() string {
 		lines = append(lines, "")
 	}
 
-	// Tags — uppercase, no brackets, with separator
+	// Tags — uppercase, bordered pill style
 	if len(m.item.Tags) > 0 {
 		lines = append(lines, "  "+StyleMuted.Render(strings.Repeat("─", contentWidth)))
 		lines = append(lines, "")
 		var tags []string
 		for _, tag := range m.item.Tags {
-			tags = append(tags, StyleTag.Render(strings.ToUpper(tag)))
+			pill := StyleMuted.Render("[") + StyleTag.Render(" "+strings.ToUpper(tag)+" ") + StyleMuted.Render("]")
+			tags = append(tags, pill)
 		}
-		lines = append(lines, "   "+strings.Join(tags, "  "))
+		lines = append(lines, "   "+strings.Join(tags, " "))
 		lines = append(lines, "")
 	}
 
