@@ -2,6 +2,17 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.2.0] - 2026-03-28 — Notification Banner Fixes
+
+### Fixed
+- **Dev builds never showed announcement banners**: `GetBanners()` returned empty when version was "dev". Dev builds now show API announcements while skipping version-comparison banners.
+- **Background fetch goroutine orphaned on exit**: Process exited before `FetchAsync` completed, so the cache file was never written. Added `sync.WaitGroup` to wait for completion in `PersistentPostRun`.
+- **TUI never displayed banners on first run**: Stale-while-revalidate model showed banners from previous cache, but TUI is long-running and only reads banners at startup. TUI now fetches synchronously (2s timeout) when cache is stale.
+- **Incremental `&since=` wiping announcements from cache**: `fetchFromAPI` sent `since=lastFetchTime`, causing the API to return only newer announcements. Full cache was replaced with this subset, losing existing announcements. Removed `since` param; always fetch all active announcements.
+- **Version string not URL-encoded in API request**: Semver `+` metadata could inject query params. Now uses `url.QueryEscape`.
+- **Expired announcements shown from stale cache**: `GetBanners()` now filters out announcements past their `expires_at` timestamp.
+- **Stale flag never reset after successful fetch**: `loadCacheFile()` only set `m.stale = true` on failure, never reset to `false`. Now resets at the top of each call.
+
 ## [0.3.1.1] - 2026-03-28 — Bug Fixes & Review Hardening
 
 ### Fixed
