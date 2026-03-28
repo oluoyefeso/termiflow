@@ -18,6 +18,7 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/providers"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/scheduler"
+	tfSync "github.com/oluoyefeso/termiflow/internal/sync"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 	"github.com/oluoyefeso/termiflow/pkg/models"
 )
@@ -315,6 +316,9 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 				// Non-fatal: continue with other subscriptions
 				return
 			}
+
+			// Push new items to server (managed mode, fails silently)
+			tfSync.PushFeedItems(ctx, items)
 
 			mu.Lock()
 			totalNewItems += len(items)

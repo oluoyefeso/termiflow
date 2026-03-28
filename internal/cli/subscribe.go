@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
+	tfSync "github.com/oluoyefeso/termiflow/internal/sync"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 	"github.com/oluoyefeso/termiflow/pkg/models"
 )
@@ -86,6 +88,9 @@ func runSubscribe(cmd *cobra.Command, args []string) error {
 	if err := db.CreateSubscription(sub); err != nil {
 		return fmt.Errorf("failed to create subscription: %w", err)
 	}
+
+	// Sync to server (managed mode only, fails silently)
+	tfSync.PushSubscription(context.Background(), sub)
 
 	// Print success message
 	fmt.Print(ui.Success(fmt.Sprintf("Subscribed to %s", topic)))

@@ -60,6 +60,14 @@ func RunMigrations() error {
 		`CREATE INDEX IF NOT EXISTS idx_feed_items_read ON feed_items(is_read)`,
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_items_sub_url ON feed_items(subscription_id, source_url)`,
+
+		// Sync: offline read-state buffer for managed-mode users
+		`CREATE TABLE IF NOT EXISTS pending_read_sync (
+			source_url TEXT NOT NULL,
+			topic TEXT NOT NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (topic, source_url)
+		)`,
 	}
 
 	for _, migration := range migrations {

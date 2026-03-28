@@ -59,6 +59,11 @@ func Get() *sql.DB {
 	return db
 }
 
+// IsOpen returns true if the database has been initialized.
+func IsOpen() bool {
+	return db != nil
+}
+
 // Begin starts a new database transaction.
 func Begin() (*sql.Tx, error) {
 	return db.Begin()

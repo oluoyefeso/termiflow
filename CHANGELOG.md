@@ -2,6 +2,24 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.6.0] - 2026-03-28 — Server-Side Sync Infrastructure
+
+### Added
+- **Shared `ManagedClient`** (`internal/providers/managed_client.go`): Extracts auth headers, version header, retry logic, and JSON helpers into one shared HTTP client. Used by LLM proxy, search proxy, and sync. Eliminates DRY violation across three managed-mode HTTP clients.
+- **Sync package** (`internal/sync/`): Server-side data sync for managed-mode users. Auto-syncs subscriptions, feed items, and read state to `api.termiflow.com` so switching devices preserves all data.
+  - Full-state subscription sync (pull all, diff locally, union merge)
+  - Incremental feed item sync (push after curation, pull since last sync)
+  - Offline read-state buffer (`pending_read_sync` table) replays on reconnect
+  - 30-minute staleness check on every CLI command
+- **Sync hooks**: Subscribe, unsubscribe, and feed refresh automatically push to server. Root command pulls on startup. All gated by `IsManagedMode()`, zero impact on self-hosted users.
+- **`db.IsOpen()`**: Nil-safe check for DB initialization state.
+- **12 sync tests** covering nil safety, staleness logic, server call verification, and network error resilience.
+
+### Changed
+- **`ManagedProvider`** refactored to use shared `ManagedClient` instead of owning its own `http.Client` + auth headers.
+- **`ManagedSearchProvider`** refactored to use shared `ManagedClient`. Removes `llm` package import (was only needed for `CLIVersion`).
+- **`CLIVersion`** moved from `llm` package to `providers` package (shared concern).
+
 ## [0.3.5.0] - 2026-03-28 — API Health Indicator
 
 ### Added
