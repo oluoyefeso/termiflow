@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/tui/components"
 	"github.com/oluoyefeso/termiflow/pkg/models"
 )
 
@@ -22,6 +23,7 @@ type DetailModel struct {
 	width     int
 	height    int
 	statusMsg string // transient status message
+	topic     string // topic name for breadcrumb
 }
 
 func NewDetailModel(item *models.FeedItem, items []*models.FeedItem, index int) DetailModel {
@@ -108,7 +110,38 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 	return m, nil
 }
 
-func (m DetailModel) View() string {
+// Breadcrumb returns breadcrumb segments for the detail screen.
+func (m DetailModel) Breadcrumb() []string {
+	crumbs := []string{}
+	if m.topic != "" {
+		crumbs = append(crumbs, strings.ToUpper(m.topic))
+	}
+	if m.item != nil {
+		title := m.item.Title
+		runes := []rune(title)
+		if len(runes) > 30 {
+			title = string(runes[:27]) + "..."
+		}
+		crumbs = append(crumbs, title)
+	}
+	return crumbs
+}
+
+// StatusHints returns keybinding hints for the detail screen.
+func (m DetailModel) StatusHints() []components.KeyHint {
+	hints := []components.KeyHint{
+		{Key: "o", Desc: "open"},
+		{Key: "m", Desc: "read"},
+		{Key: "n/p", Desc: "next/prev"},
+	}
+	if m.statusMsg != "" {
+		// Status message shown in hints area
+	}
+	return hints
+}
+
+// ContentView renders the article detail content without header/footer chrome.
+func (m DetailModel) ContentView() string {
 	if m.item == nil {
 		return StyleMuted.Render("  No article selected")
 	}
@@ -118,22 +151,31 @@ func (m DetailModel) View() string {
 		w = 69
 	}
 
+	// Content width capped at 72 for readability
+	contentWidth := w - 4
+	if contentWidth > 72 {
+		contentWidth = 72
+	}
+
 	// Build the full content first, then apply scroll
 	var lines []string
 
-	// Header
-	lines = append(lines, StyleMuted.Render(Bar("═", w)))
+	// Title
+	lines = append(lines, "")
 	lines = append(lines, fmt.Sprintf("  %s", StyleAccent.Render(m.item.Title)))
-	lines = append(lines, StyleMuted.Render(Bar("─", w)))
 
-	// Meta
-	meta := fmt.Sprintf("  %s  %s",
+	// Separator
+	lines = append(lines, "  "+StyleMuted.Render(strings.Repeat("─", contentWidth)))
+
+	// Meta: source · time · relevance bar
+	meta := fmt.Sprintf("  %s · %s",
 		StyleMuted.Render(m.item.SourceName),
 		StyleMuted.Render(m.item.TimeAgo()),
 	)
 	if m.item.RelevanceScore > 0 {
-		meta += fmt.Sprintf("  %s",
-			StyleTitle.Render(fmt.Sprintf("%.0f%% relevant", m.item.RelevanceScore*100)))
+		meta += fmt.Sprintf(" · %s %s",
+			RelevanceBar(m.item.RelevanceScore),
+			StyleMuted.Render(fmt.Sprintf("%.0f%%", m.item.RelevanceScore*100)))
 	}
 	lines = append(lines, meta)
 
@@ -141,11 +183,14 @@ func (m DetailModel) View() string {
 		lines = append(lines, fmt.Sprintf("  %s", StyleMuted.Render(m.item.SourceURL)))
 	}
 
+	// Horizontal rule between metadata and content
+	lines = append(lines, "")
+	lines = append(lines, "  "+StyleMuted.Render(strings.Repeat("─", contentWidth)))
 	lines = append(lines, "")
 
 	// Summary
 	if m.item.Summary != "" {
-		wrapped := wrapText(m.item.Summary, w-4)
+		wrapped := wrapText(m.item.Summary, contentWidth)
 		for _, line := range strings.Split(wrapped, "\n") {
 			lines = append(lines, "  "+line)
 		}
@@ -154,28 +199,41 @@ func (m DetailModel) View() string {
 
 	// Content (if different from summary)
 	if m.item.Content != "" && m.item.Content != m.item.Summary {
-		lines = append(lines, StyleMuted.Render("  ─── Full content ───"))
+		lines = append(lines, "  "+LabeledRule("Full content", contentWidth))
 		lines = append(lines, "")
-		wrapped := wrapText(m.item.Content, w-4)
+		wrapped := wrapText(m.item.Content, contentWidth)
 		for _, line := range strings.Split(wrapped, "\n") {
 			lines = append(lines, "  "+line)
 		}
 		lines = append(lines, "")
 	}
 
-	// Tags
+	// Tags with dotted separator
 	if len(m.item.Tags) > 0 {
+		lines = append(lines, "  "+DottedRule(contentWidth))
+		lines = append(lines, "")
 		var tags []string
 		for _, tag := range m.item.Tags {
-			tags = append(tags, StyleTag.Render("["+tag+"]"))
+			tags = append(tags, StyleTag.Render("#"+tag))
 		}
-		lines = append(lines, "  "+strings.Join(tags, " "))
+		lines = append(lines, "   "+strings.Join(tags, "  "))
 		lines = append(lines, "")
 	}
 
+	// Status message
+	if m.statusMsg != "" {
+		lines = append(lines, fmt.Sprintf("  %s %s",
+			StyleSuccess.Render("✓"), m.statusMsg))
+		lines = append(lines, "")
+	}
+
+	// Position indicator
+	lines = append(lines, fmt.Sprintf("  %s",
+		StyleMuted.Render(fmt.Sprintf("%d/%d", m.index+1, len(m.items)))))
+
 	// Clamp scroll
 	totalLines := len(lines)
-	viewportHeight := m.height - 3 // reserve for status bar
+	viewportHeight := m.height
 	if viewportHeight < 5 {
 		viewportHeight = 20
 	}
@@ -207,22 +265,6 @@ func (m DetailModel) View() string {
 		b.WriteString(StyleMuted.Render(fmt.Sprintf("  ── %d%% ──", pct)))
 		b.WriteString("\n")
 	}
-
-	// Status bar
-	b.WriteString(StyleMuted.Render(Bar("─", w)) + "\n")
-
-	posLabel := StyleMuted.Render(fmt.Sprintf("%d/%d", m.index+1, len(m.items)))
-	hints := []string{
-		StyleTitle.Render("[o]") + " " + StyleMuted.Render("open"),
-		StyleTitle.Render("[m]") + " " + StyleMuted.Render("read"),
-		StyleTitle.Render("[n/p]") + " " + StyleMuted.Render("next/prev"),
-		StyleTitle.Render("[esc]") + " " + StyleMuted.Render("back"),
-		posLabel,
-	}
-	if m.statusMsg != "" {
-		hints = append(hints, StyleSuccess.Render(m.statusMsg))
-	}
-	b.WriteString(" " + strings.Join(hints, "  "))
 
 	return b.String()
 }
@@ -271,7 +313,6 @@ func openBrowser(rawURL string) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	// Reap the child process in the background
 	go func() { _ = cmd.Wait() }()
 	return nil
 }
