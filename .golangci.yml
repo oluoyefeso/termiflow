@@ -1,5 +1,4 @@
 # golangci-lint configuration for termiflow
-# Compatible with golangci-lint v2
 version: "2"
 
 run:
@@ -15,27 +14,21 @@ linters:
     - unused
     - misspell
     - unconvert
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+        - unusedwrite
+    misspell:
+      locale: US
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
-      - unusedwrite
-  goimports:
-    local-prefixes: github.com/oluoyefeso/termiflow
-  misspell:
-    locale: US
-issues:
-  exclude-rules:
-    - text: "ST1005"
-      linters:
-        - staticcheck
-  max-issues-per-linter: 50
-  max-same-issues: 10
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/oluoyefeso/termiflow
