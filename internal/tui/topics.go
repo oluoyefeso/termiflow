@@ -24,21 +24,21 @@ const (
 
 // TopicsModel is the topics browser screen.
 type TopicsModel struct {
-	subscribed  []SubInfo
-	available   []AvailableCategory
-	section     topicsSection
-	cursor      int
-	width       int
-	height      int
-	loading     bool
-	err         error
-	statusMsg   string
-	freqPicking bool   // showing frequency picker
-	freqCursor  int    // 0=hourly, 1=daily, 2=weekly
-	freqAction  string // "subscribe" or "edit"
-	freqTopic   string // topic being acted on
-	confirming  bool   // showing delete confirmation
-	customAdding bool           // showing custom topic text input
+	subscribed   []SubInfo
+	available    []AvailableCategory
+	section      topicsSection
+	cursor       int
+	width        int
+	height       int
+	loading      bool
+	err          error
+	statusMsg    string
+	freqPicking  bool            // showing frequency picker
+	freqCursor   int             // 0=hourly, 1=daily, 2=weekly
+	freqAction   string          // "subscribe" or "edit"
+	freqTopic    string          // topic being acted on
+	confirming   bool            // showing delete confirmation
+	customAdding bool            // showing custom topic text input
 	customInput  textinput.Model // text input for custom topic name
 }
 
