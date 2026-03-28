@@ -3,6 +3,8 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	engine "github.com/oluoyefeso/termiflow-engine"
@@ -17,6 +19,7 @@ type Scheduler struct {
 	llmProvider    llm.Provider
 	searchProvider search.Provider
 	rssProvider    *search.RSSProvider
+	scraper        *search.Scraper
 	curator        *engine.Curator
 }
 
@@ -41,41 +44,77 @@ func New(llmProvider llm.Provider, searchProvider search.Provider) *Scheduler {
 		llmProvider:    llmProvider,
 		searchProvider: searchProvider,
 		rssProvider:    search.NewRSSProvider(),
+		scraper:        search.NewScraper("", 0),
 		curator:        engine.NewCurator(llm.AsEngine(llmProvider)),
 	}
 }
 
-// RefreshSubscription fetches and processes new items for a subscription
+// RefreshSubscription fetches and processes new items for a subscription.
+// Branches on source_type: "feed" and "scrape" use direct fetch, "topic" uses search.
 func (s *Scheduler) RefreshSubscription(ctx context.Context, sub *models.Subscription) ([]*models.FeedItem, error) {
 	var allResults []search.SearchResult
+	scoringTopic := sub.ScoringTopic()
 
-	// Fetch from search provider (Tavily)
-	if s.searchProvider != nil && s.searchProvider.Available() {
-		results, err := s.searchProvider.Search(ctx, search.SearchRequest{
-			Query:      sub.Topic,
-			MaxResults: 10,
-			TimeRange:  sub.GetTimeRange(),
-		})
-		if err == nil {
-			allResults = append(allResults, results...)
+	switch sub.SourceType {
+	case "feed":
+		// Source subscription: fetch RSS feed directly
+		results, err := s.rssProvider.FetchFeed(ctx, sub.SourceURL, sub.LastFetchedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch feed %s: %w", sub.SourceURL, err)
 		}
-	}
+		// Strip HTML from RSS content before LLM processing
+		for i := range results {
+			results[i].Content = stripHTML(results[i].Content)
+			results[i].Snippet = stripHTML(results[i].Snippet)
+			if runes := []rune(results[i].Content); len(runes) > 2000 {
+				results[i].Content = string(runes[:2000])
+			}
+		}
+		allResults = results
 
-	// Fetch from RSS feeds if this is a category with default RSS
-	category := models.GetCategoryByName(sub.Topic)
-	if category != nil && len(category.DefaultRSS) > 0 {
-		results, err := s.rssProvider.FetchMultipleFeeds(ctx, category.DefaultRSS, sub.LastFetchedAt)
-		if err == nil {
-			allResults = append(allResults, results...)
+	case "scrape":
+		// Scrape subscription: fetch page content
+		result, err := s.scraper.Scrape(ctx, sub.SourceURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scrape %s: %w", sub.SourceURL, err)
+		}
+		if result != nil {
+			allResults = []search.SearchResult{*result}
+		}
+
+	default:
+		// Topic subscription: existing flow (search + category RSS)
+		if s.searchProvider != nil && s.searchProvider.Available() {
+			results, err := s.searchProvider.Search(ctx, search.SearchRequest{
+				Query:      sub.Topic,
+				MaxResults: 10,
+				TimeRange:  sub.GetTimeRange(),
+			})
+			if err == nil {
+				allResults = append(allResults, results...)
+			}
+		}
+
+		// Fetch from RSS feeds if this is a category with default RSS
+		category := models.GetCategoryByName(sub.Topic)
+		if category != nil && len(category.DefaultRSS) > 0 {
+			results, err := s.rssProvider.FetchMultipleFeeds(ctx, category.DefaultRSS, sub.LastFetchedAt)
+			if err == nil {
+				allResults = append(allResults, results...)
+			}
 		}
 	}
 
 	// Deduplicate by URL
 	allResults = deduplicateByURL(allResults)
 
+	if len(allResults) == 0 {
+		return nil, nil
+	}
+
 	// Convert CLI search results to engine search results and curate
 	engineResults := search.ToEngineResults(allResults)
-	curatedItems, err := s.curator.Curate(ctx, sub.Topic, engineResults)
+	curatedItems, err := s.curator.Curate(ctx, scoringTopic, engineResults)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +188,16 @@ func shouldRefresh(sub *models.Subscription) bool {
 	default:
 		return now.Sub(*sub.LastFetchedAt) >= 24*time.Hour
 	}
+}
+
+// htmlTagRe matches HTML tags for stripping.
+var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
+
+// stripHTML removes HTML tags and collapses whitespace.
+func stripHTML(s string) string {
+	s = htmlTagRe.ReplaceAllString(s, " ")
+	s = strings.Join(strings.Fields(s), " ")
+	return strings.TrimSpace(s)
 }
 
 func deduplicateByURL(results []search.SearchResult) []search.SearchResult {

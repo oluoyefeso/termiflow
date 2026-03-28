@@ -41,11 +41,7 @@ func NewHeaderInfo(version string) HeaderInfo {
 	h := HeaderInfo{Version: version}
 	if config.IsManagedMode() {
 		h.Mode = "Managed"
-		cfg := config.Get()
-		h.Endpoint = cfg.Providers.Managed.BaseURL
-		if h.Endpoint == "" {
-			h.Endpoint = "api.termiflow.com"
-		}
+		h.Endpoint = "termiflow cloud"
 	} else {
 		h.Mode = "Self-hosted"
 		cfg := config.Get()
