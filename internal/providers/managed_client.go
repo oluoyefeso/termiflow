@@ -105,7 +105,7 @@ func (c *ManagedClient) DoJSON(ctx context.Context, method, path string, reqBody
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return fmt.Errorf("API error %s: %s", resp.Status, string(bodyBytes))
 	}
 

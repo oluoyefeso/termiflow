@@ -95,8 +95,10 @@ No browser switching, no context loss, no noise. Just signal.`,
 				config.Get().Providers.Managed.BaseURL,
 			)
 			tfSync.Init(mc)
-			// Pull sync if stale (>30m since last sync)
-			tfSync.PullIfStale(context.Background())
+			// Pull sync if stale (>30m since last sync). Short timeout so CLI never blocks.
+			syncCtx, syncCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			tfSync.PullIfStale(syncCtx)
+			syncCancel()
 		}
 
 		// Load notification banners and start background fetch

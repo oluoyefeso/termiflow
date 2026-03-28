@@ -42,6 +42,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -145,7 +146,7 @@ func Pull(ctx context.Context) {
 	// Pull from server
 	path := "/v1/sync"
 	if state.LastSyncAt != "" {
-		path += "?since=" + state.LastSyncAt
+		path += "?since=" + url.QueryEscape(state.LastSyncAt)
 	}
 
 	var resp syncPullResponse
@@ -160,10 +161,13 @@ func Pull(ctx context.Context) {
 		mergeFeedItems(resp.FeedItems)
 	}
 
-	// Pull remaining pages if paginated
+	// Pull remaining pages if paginated (reuse the same path base as first request)
 	if db.IsOpen() {
 		for page := 2; page <= resp.FeedItemsTotal; page++ {
-			pagePath := fmt.Sprintf("/v1/sync?since=%s&page=%d", state.LastSyncAt, page)
+			pagePath := fmt.Sprintf("%s&page=%d", path, page)
+			if state.LastSyncAt == "" {
+				pagePath = fmt.Sprintf("/v1/sync?page=%d", page)
+			}
 			var pageResp syncPullResponse
 			if err := s.client.DoJSON(ctx, "GET", pagePath, nil, &pageResp); err != nil {
 				break // best effort
@@ -204,7 +208,7 @@ func DeleteSubscription(ctx context.Context, topic string) {
 		return
 	}
 	// DoJSON handles retry, 404 is fine (idempotent)
-	_ = s.client.DoJSON(ctx, "DELETE", "/v1/subscriptions/"+topic, nil, nil)
+	_ = s.client.DoJSON(ctx, "DELETE", "/v1/subscriptions/"+url.PathEscape(topic), nil, nil)
 }
 
 // PushFeedItems pushes newly curated items to the server.
@@ -392,9 +396,17 @@ func mergeFeedItems(items []serverFeedItem) {
 		// INSERT OR IGNORE (dedup by subscription_id + source_url)
 		_ = db.CreateFeedItem(feedItem)
 
-		// If server says read and local says unread, mark read (OR-merge)
-		if item.IsRead && feedItem.ID > 0 {
-			_ = db.MarkItemRead(feedItem.ID)
+		// OR-merge read state: if server says read, mark local as read
+		if item.IsRead {
+			if feedItem.ID > 0 {
+				// Newly inserted item
+				_ = db.MarkItemRead(feedItem.ID)
+			} else {
+				// Existing item (INSERT OR IGNORE, ID stayed 0). Look up by URL.
+				if existing, err := db.ItemBySubscriptionAndURL(sub.ID, item.SourceURL); err == nil && existing != nil && !existing.IsRead {
+					_ = db.MarkItemRead(existing.ID)
+				}
+			}
 		}
 	}
 }
