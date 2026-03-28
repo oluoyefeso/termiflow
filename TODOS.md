@@ -18,17 +18,14 @@
 **Context:** `internal/api/proxy_llm.go`. Use `w.(http.Flusher)` — assert and call `flusher.Flush()` after each SSE chunk. `ManagedProvider.Stream()` currently calls `Complete()` internally (buffered) — update it to parse SSE events once backend supports it. Add explicit integration test with a slow mock Anthropic server.
 **Depends on:** Nothing blocking — independent of rate limiting.
 
-### Parallelize curator article processing
-**What:** Process each article's score + summarize + tags LLM calls concurrently in `CurateResults()`.
-**Why:** With 10 search results and managed mode (CLI→backend→Anthropic), 30 sequential HTTP hops take ~60s. Parallelizing to 5 concurrent articles reduces this to ~15s.
-**Pros:** 4x faster feed refresh. No change to API surface.
-**Cons:** Adds goroutines + sync complexity to `internal/intelligence/curator.go`. Must bound concurrency (semaphore, max 5) to avoid overwhelming the managed API.
-**Context:** `internal/intelligence/curator.go`, `CurateResults()`. Use `errgroup.Group` (golang.org/x/sync/errgroup) with semaphore: `sem := semaphore.NewWeighted(5)`. Each article processes in its own goroutine. Collect results into a channel. Existing test coverage in curator should be extended with concurrency assertions.
-**Depends on:** Nothing blocking.
-
 ---
 
 ## Done
+
+### Parallelize within-article LLM calls + concurrent subscription refresh
+**Shipped in:** v0.3.9.0
+**What:** Two optimizations: (1) Summarize and ExtractTags run in parallel within each article goroutine (engine), (2) Subscription refresh runs up to 2 subscriptions concurrently (CLI + TUI). Existing between-article concurrency (maxConcurrency=5) was already in place.
+**Impact:** ~2-4x faster feed refresh. Max burst 20 concurrent LLM calls (2 subs × 5 articles × 2 calls).
 
 ### Rate limiting per API key
 **Shipped in:** `d2ece1d` (implementation) + eng review fixes (middleware order, cleanup race, panic recovery, JSON 429 response, server timeout, test coverage)

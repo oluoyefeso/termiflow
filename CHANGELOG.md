@@ -2,6 +2,15 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.9.0] - 2026-03-28 — Concurrent Subscription Refresh
+
+### Changed
+- **Concurrent subscription refresh**: TUI and CLI now refresh up to 2 subscriptions concurrently instead of sequentially. With 5 subscriptions, wall-clock time is roughly halved. Per-topic progress messages still appear in real-time.
+- **CLI refresh concurrency reduced from 5 to 2**: Bounds burst LLM calls at ~20 max (2 subs × 5 articles × 2 calls) to stay within managed API rate limits.
+
+### Added
+- **`RefreshAllSubscriptionsConcurrent()`**: New scheduler method with bounded concurrency via channel semaphore, progress callback for UI updates, panic recovery in goroutines, and `maxConcurrent <= 0` guard against deadlock.
+
 ## [0.3.8.0] - 2026-03-28 — Styling Refresh
 
 ### Changed

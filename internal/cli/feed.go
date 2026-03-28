@@ -291,7 +291,7 @@ func refreshFeeds(cfg *config.Config, topicFilter string) error {
 		rateLimited   []string // topic names that hit rate limits
 	)
 
-	sem := make(chan struct{}, 5)
+	sem := make(chan struct{}, 2) // 2 concurrent subs × 5 articles × 2 LLM calls = 20 max burst
 	for _, sub := range subs {
 		wg.Add(1)
 		sem <- struct{}{}
