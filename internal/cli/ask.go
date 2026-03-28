@@ -181,10 +181,10 @@ func buildPrompt(question string, sources []search.SearchResult) string {
 	if len(sources) > 0 {
 		sb.WriteString("Use the following sources to inform your answer:\n\n")
 		for i, src := range sources {
-			sb.WriteString(fmt.Sprintf("Source %d: %s\n", i+1, src.Title))
-			sb.WriteString(fmt.Sprintf("URL: %s\n", src.URL))
+			fmt.Fprintf(&sb, "Source %d: %s\n", i+1, src.Title)
+			fmt.Fprintf(&sb, "URL: %s\n", src.URL)
 			if src.Snippet != "" {
-				sb.WriteString(fmt.Sprintf("Content: %s\n", src.Snippet))
+				fmt.Fprintf(&sb, "Content: %s\n", src.Snippet)
 			}
 			sb.WriteString("\n")
 		}
@@ -221,15 +221,15 @@ func saveAskResult(question, answer string, sources []search.SearchResult) (stri
 	path := filepath.Join(saveDir, filename)
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("## %s\n\n", question))
-	sb.WriteString(fmt.Sprintf("*%s*\n\n", ts.Format("2006-01-02 15:04")))
+	fmt.Fprintf(&sb, "## %s\n\n", question)
+	fmt.Fprintf(&sb, "*%s*\n\n", ts.Format("2006-01-02 15:04"))
 	sb.WriteString(answer)
 	sb.WriteString("\n")
 
 	if len(sources) > 0 {
 		sb.WriteString("\n### Sources\n\n")
 		for i, src := range sources {
-			sb.WriteString(fmt.Sprintf("%d. [%s](%s)\n", i+1, src.Title, src.URL))
+			fmt.Fprintf(&sb, "%d. [%s](%s)\n", i+1, src.Title, src.URL)
 		}
 	}
 

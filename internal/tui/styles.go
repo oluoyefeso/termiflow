@@ -62,6 +62,20 @@ var (
 	// Tag style
 	StyleTag = lipgloss.NewStyle().
 			Foreground(ColorPrimary)
+
+	// Inverted key style for status bar (amber bg, black fg)
+	StyleInvertedKey = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("0")).
+				Background(ColorPrimary)
+
+	// Selected item background
+	StyleSelectedBg = lipgloss.NewStyle().
+			Background(lipgloss.Color("236"))
+
+	// Dotted separator
+	StyleDotSeparator = lipgloss.NewStyle().
+				Foreground(ColorMuted)
 )
 
 // Bar returns a horizontal rule of the given character repeated width times.

@@ -2,6 +2,49 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.1.1] - 2026-03-28 — Bug Fixes & Review Hardening
+
+### Fixed
+- **Feed list showing only 3 items**: Screen models were created with height=0 on navigation. Terminal dimensions are now forwarded on every screen switch.
+- **Feed sort order**: TUI feed now sorts by published date (newest first) instead of relevance score. Items with missing dates sink to bottom.
+- **Relevance percentage alignment**: Fixed column alignment for scores (85% vs 100%) using fixed-width formatting.
+- **Spinner never restarting after idle**: Animation tick is now batched on all screen transitions, not just dashboard.
+- **Per-topic refresh status dead**: `*tea.Program` is now threaded via `programHolder` so `p.Send(PerTopicRefreshMsg)` actually fires during refresh.
+- **Border off-by-one in RenderCard and RenderBanner**: Top border was 1 character narrower than content and bottom borders.
+- **Column width calculation**: Uses visual width (`lipgloss.Width`) instead of byte length (`len`) for topic names, fixing alignment with Unicode characters.
+
+### Changed
+- **errcheck linter**: Added to TODOS.md as P2 item to re-enable after golangci-lint v2 migration stabilizes.
+
+## [0.3.1.0] - 2026-03-28 — Premium UX Polish (Bloomberg Terminal Aesthetic)
+
+### Added
+- **Persistent header**: Fixed header across all screens with breadcrumb navigation (TERMIFLOW > SCREEN > Context), unread badge, connection health dot, and last refresh time.
+- **Bordered announcement cards**: Notification banners render as bordered cards with type labels (UPDATE, WARNING, BREAKING). Breaking announcements use double borders.
+- **Dashboard command center**: Per-topic activity bars, inline frequency and last-fetch time, activity footer with refresh status and next auto-refresh timer.
+- **Per-topic refresh feedback**: Each subscription shows inline status during refresh (spinning, success with count, error) instead of one global spinner.
+- **Feed relevance micro-bars**: Visual 4-char bars (████, ██▓░) for relevance scores. Selected items get a subtle dark background.
+- **Article detail polish**: Horizontal rules between sections, #tag style (replaces [tag]), dotted separators, 72-char content width cap for readability.
+- **Ask screen polish**: Labeled source section (── Sources ──), column-aligned source list, animated search dots, 3-second save flash that fades to muted.
+- **Inverted key status bar**: Keys rendered with amber background/black text for a keyboard-key feel, ═ separator matching the header.
+- **Help modal overlay**: Help renders as a centered bordered card over the current screen, not a full-screen replacement.
+- **Loading animations**: Animated spinner (▁▂▃▄) for loading states across all screens.
+- **Bordered welcome card**: Zero-subscription state shows a bordered GET STARTED card pointing to the TUI topics browser.
+- **Status info cards**: Status screen renders as bordered section cards (CONNECTION, DATA, SYSTEM).
+- **Shared layout system**: New `layout.go` with centralized rendering helpers (RenderHeader, RenderBanner, RenderCard, RelevanceBar, ActivityBar, etc.). All screens use ContentView/StatusHints/Breadcrumb interface.
+
+### Changed
+- **Column alignment**: Strict fixed-width columns across all screens. Topic names, unread counts, frequencies, and timestamps snap to consistent positions.
+- **Topics browser alignment**: Subscribed and available sections use column-aligned metadata.
+- **Screen architecture**: AppModel now owns persistent chrome (header + footer). Screens only emit content via ContentView(). Eliminates 6x duplicated header rendering.
+
+### Fixed
+- **Spinner CPU waste**: Animation ticks now stop when no screen is loading, preventing 7x/sec wakeups when idle.
+- **Narrow terminal panics**: Clamped negative values in title truncation, banner rendering, help overlay, and card padding to prevent strings.Repeat panics on terminals under 20 chars wide.
+- **Stale refresh badges**: Per-topic refresh status is now cleared when refresh completes.
+- **Detail breadcrumb**: Article detail screen now shows the topic name in the breadcrumb trail.
+- **Card border alignment**: RenderCard right border now aligns correctly with top/bottom borders.
+
 ## [0.3.0.0] - 2026-03-27 — Topics Browser, Status Screen & TUI Complete (Batch 6E)
 
 ### Added

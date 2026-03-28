@@ -89,7 +89,7 @@ func (p *TavilyProvider) Search(ctx context.Context, req SearchRequest) ([]Searc
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Tavily API error: %s - %s", resp.Status, string(bodyBytes))
+		return nil, fmt.Errorf("tavily API error: %s - %s", resp.Status, string(bodyBytes))
 	}
 
 	var tavilyResp tavilyResponse
