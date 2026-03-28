@@ -129,15 +129,11 @@ func (m DetailModel) Breadcrumb() []string {
 
 // StatusHints returns keybinding hints for the detail screen.
 func (m DetailModel) StatusHints() []components.KeyHint {
-	hints := []components.KeyHint{
+	return []components.KeyHint{
 		{Key: "o", Desc: "open"},
 		{Key: "m", Desc: "read"},
 		{Key: "n/p", Desc: "next/prev"},
 	}
-	if m.statusMsg != "" {
-		// Status message shown in hints area
-	}
-	return hints
 }
 
 // ContentView renders the article detail content without header/footer chrome.
