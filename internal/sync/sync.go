@@ -70,13 +70,17 @@ type syncPullResponse struct {
 }
 
 type serverSubscription struct {
-	Topic     string   `json:"topic"`
-	Category  string   `json:"category,omitempty"`
-	Frequency string   `json:"frequency"`
-	Sources   []string `json:"sources,omitempty"`
-	CreatedAt string   `json:"created_at"`
-	UpdatedAt string   `json:"updated_at"`
-	IsActive  bool     `json:"is_active"`
+	Topic       string   `json:"topic"`
+	Category    string   `json:"category,omitempty"`
+	Frequency   string   `json:"frequency"`
+	Sources     []string `json:"sources,omitempty"`
+	CreatedAt   string   `json:"created_at"`
+	UpdatedAt   string   `json:"updated_at"`
+	IsActive    bool     `json:"is_active"`
+	SourceURL   string   `json:"source_url,omitempty"`
+	SourceType  string   `json:"source_type,omitempty"`
+	DisplayName string   `json:"display_name,omitempty"`
+	Context     string   `json:"context,omitempty"`
 }
 
 type serverFeedItem struct {
@@ -189,13 +193,17 @@ func PushSubscription(ctx context.Context, sub *models.Subscription) {
 		return
 	}
 	serverSub := serverSubscription{
-		Topic:     sub.Topic,
-		Category:  sub.Category,
-		Frequency: sub.Frequency,
-		Sources:   sub.Sources,
-		CreatedAt: sub.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: sub.UpdatedAt.UTC().Format(time.RFC3339),
-		IsActive:  sub.IsActive,
+		Topic:       sub.Topic,
+		Category:    sub.Category,
+		Frequency:   sub.Frequency,
+		Sources:     sub.Sources,
+		CreatedAt:   sub.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:   sub.UpdatedAt.UTC().Format(time.RFC3339),
+		IsActive:    sub.IsActive,
+		SourceURL:   sub.SourceURL,
+		SourceType:  sub.SourceType,
+		DisplayName: sub.DisplayName,
+		Context:     sub.Context,
 	}
 	// Fail silently, next pull catches up
 	_ = s.client.DoJSON(ctx, "PUT", "/v1/subscriptions", serverSub, nil)
@@ -339,11 +347,15 @@ func mergeSubscriptions(ctx context.Context, serverSubs []serverSubscription) {
 	for _, serverSub := range serverSubs {
 		if _, exists := localMap[serverSub.Topic]; !exists {
 			newSub := &models.Subscription{
-				Topic:     serverSub.Topic,
-				Category:  serverSub.Category,
-				Frequency: serverSub.Frequency,
-				Sources:   serverSub.Sources,
-				IsActive:  serverSub.IsActive,
+				Topic:       serverSub.Topic,
+				Category:    serverSub.Category,
+				Frequency:   serverSub.Frequency,
+				Sources:     serverSub.Sources,
+				IsActive:    serverSub.IsActive,
+				SourceURL:   serverSub.SourceURL,
+				SourceType:  serverSub.SourceType,
+				DisplayName: serverSub.DisplayName,
+				Context:     serverSub.Context,
 			}
 			_ = db.CreateSubscription(newSub)
 		} else {
