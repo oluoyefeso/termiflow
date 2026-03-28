@@ -58,7 +58,6 @@ func loadTopics() tea.Cmd {
 			subscribedNames[sub.Topic] = true
 			total, unread, err := db.GetSubscriptionItemCount(sub.ID)
 			if err != nil {
-				// Still show the subscription, just with zero counts
 				total, unread = 0, 0
 			}
 			subInfos = append(subInfos, SubInfo{Sub: sub, Total: total, Unread: unread})
@@ -147,11 +146,11 @@ func (m *TopicsModel) updateNormal(msg tea.KeyMsg) (TopicsModel, tea.Cmd) {
 			m.cursor--
 		}
 	case key.Matches(msg, TopicsKeys.Down):
-		max := m.currentListLen() - 1
-		if max < 0 {
-			max = 0
+		mx := m.currentListLen() - 1
+		if mx < 0 {
+			mx = 0
 		}
-		if m.cursor < max {
+		if m.cursor < mx {
 			m.cursor++
 		}
 	case key.Matches(msg, TopicsKeys.Tab):
@@ -179,7 +178,6 @@ func (m *TopicsModel) updateNormal(msg tea.KeyMsg) (TopicsModel, tea.Cmd) {
 			m.freqPicking = true
 			m.freqAction = "edit"
 			m.freqTopic = sub.Sub.Topic
-			// Set cursor to current frequency
 			m.freqCursor = 1
 			for i, f := range frequencies {
 				if f == sub.Sub.Frequency {
@@ -276,19 +274,29 @@ func changeFrequency(topic, frequency string) tea.Cmd {
 	}
 }
 
-func (m TopicsModel) View() string {
-	w := m.width
-	if w == 0 {
-		w = 69
+// Breadcrumb returns breadcrumb segments for the topics screen.
+func (m TopicsModel) Breadcrumb() []string {
+	return []string{"TOPICS"}
+}
+
+// StatusHints returns keybinding hints for the topics screen.
+func (m TopicsModel) StatusHints() []components.KeyHint {
+	if m.section == sectionSubscribed {
+		return []components.KeyHint{
+			{Key: "d", Desc: "unsub"},
+			{Key: "e", Desc: "frequency"},
+			{Key: "tab", Desc: "available"},
+		}
 	}
+	return []components.KeyHint{
+		{Key: "enter", Desc: "subscribe"},
+		{Key: "tab", Desc: "subscribed"},
+	}
+}
 
+// ContentView renders the topics browser content without header/footer chrome.
+func (m TopicsModel) ContentView() string {
 	var b strings.Builder
-
-	// Header
-	top := StyleMuted.Render(Bar("═", w))
-	title := StyleAccent.Render("TOPICS")
-	bot := StyleMuted.Render(Bar("═", w))
-	b.WriteString(fmt.Sprintf("%s\n  %s\n%s\n", top, title, bot))
 
 	if m.loading {
 		b.WriteString(StyleMuted.Render("\n  Loading..."))
@@ -309,11 +317,11 @@ func (m TopicsModel) View() string {
 	// Delete confirmation
 	if m.confirming && m.cursor < len(m.subscribed) {
 		topic := m.subscribed[m.cursor].Sub.Topic
-		b.WriteString(fmt.Sprintf("\n  Unsubscribe from %s?\n\n", StyleAccent.Render(topic)))
-		b.WriteString(fmt.Sprintf("  %s / %s\n",
+		fmt.Fprintf(&b, "\n  Unsubscribe from %s?\n\n", StyleAccent.Render(topic))
+		fmt.Fprintf(&b, "  %s / %s\n",
 			StyleTitle.Render("[y] yes"),
 			StyleMuted.Render("[n] no"),
-		))
+		)
 		return b.String()
 	}
 
@@ -325,7 +333,23 @@ func (m TopicsModel) View() string {
 	} else {
 		availTab = StyleAccent.Render("▸ AVAILABLE")
 	}
-	b.WriteString(fmt.Sprintf("\n  %s    %s\n\n", subTab, availTab))
+	fmt.Fprintf(&b, "\n  %s    %s\n\n", subTab, availTab)
+
+	// Calculate column widths (visual width for Unicode safety)
+	topicWidth := 20
+	for _, info := range m.subscribed {
+		w := lipgloss.Width(info.Sub.Topic)
+		if w > topicWidth {
+			topicWidth = w
+		}
+	}
+	for _, cat := range m.available {
+		w := lipgloss.Width(cat.Name)
+		if w > topicWidth {
+			topicWidth = w
+		}
+	}
+	topicWidth += 2
 
 	// Active section
 	if m.section == sectionSubscribed {
@@ -339,12 +363,14 @@ func (m TopicsModel) View() string {
 				cursor = StyleSelectedIndicator.Render("▸ ")
 				nameStyle = StyleSelected
 			}
-			meta := fmt.Sprintf("%s  %d items  %d unread",
-				StyleMuted.Render(info.Sub.Frequency),
-				info.Total,
-				info.Unread,
-			)
-			b.WriteString(fmt.Sprintf("  %s%-22s %s\n", cursor, nameStyle.Render(info.Sub.Topic), meta))
+
+			topic := PadRight(nameStyle.Render(info.Sub.Topic), topicWidth)
+			freq := PadRight(StyleMuted.Render(info.Sub.Frequency), 8)
+			items := PadLeft(fmt.Sprintf("%d items", info.Total), 9)
+			unread := PadLeft(fmt.Sprintf("%d unread", info.Unread), 10)
+
+			fmt.Fprintf(&b, "  %s%s %s %s  %s\n",
+				cursor, topic, freq, items, unread)
 		}
 	} else {
 		if len(m.available) == 0 {
@@ -357,37 +383,19 @@ func (m TopicsModel) View() string {
 				cursor = StyleSelectedIndicator.Render("▸ ")
 				nameStyle = StyleSelected
 			}
-			b.WriteString(fmt.Sprintf("  %s%-22s %s\n",
-				cursor,
-				nameStyle.Render(cat.Name),
+
+			topic := PadRight(nameStyle.Render(cat.Name), topicWidth)
+			fmt.Fprintf(&b, "  %s%s %s\n",
+				cursor, topic,
 				StyleMuted.Render(cat.DisplayName),
-			))
+			)
 		}
 	}
 
 	// Status message
 	if m.statusMsg != "" {
-		b.WriteString(fmt.Sprintf("\n  %s\n", StyleSuccess.Render("✓ "+m.statusMsg)))
+		fmt.Fprintf(&b, "\n  %s\n", StyleSuccess.Render("✓ "+m.statusMsg))
 	}
-
-	// Status bar
-	b.WriteString("\n")
-	var hints []components.KeyHint
-	if m.section == sectionSubscribed {
-		hints = []components.KeyHint{
-			{Key: "d", Desc: "unsub"},
-			{Key: "e", Desc: "frequency"},
-			{Key: "tab", Desc: "available"},
-			{Key: "esc", Desc: "back"},
-		}
-	} else {
-		hints = []components.KeyHint{
-			{Key: "enter", Desc: "subscribe"},
-			{Key: "tab", Desc: "subscribed"},
-			{Key: "esc", Desc: "back"},
-		}
-	}
-	b.WriteString(components.NewStatusBar(hints, w).View())
 
 	return b.String()
 }
@@ -398,7 +406,7 @@ func (m TopicsModel) renderFreqPicker() string {
 	if m.freqAction == "edit" {
 		action = "Set frequency for"
 	}
-	b.WriteString(fmt.Sprintf("\n  %s %s\n\n", action, StyleAccent.Render(m.freqTopic)))
+	fmt.Fprintf(&b, "\n  %s %s\n\n", action, StyleAccent.Render(m.freqTopic))
 	b.WriteString("  Choose frequency:\n\n")
 	for i, f := range frequencies {
 		cursor := "  "
@@ -407,11 +415,11 @@ func (m TopicsModel) renderFreqPicker() string {
 			cursor = StyleSelectedIndicator.Render("▸ ")
 			style = StyleSelected
 		}
-		b.WriteString(fmt.Sprintf("  %s%s\n", cursor, style.Render(f)))
+		fmt.Fprintf(&b, "  %s%s\n", cursor, style.Render(f))
 	}
-	b.WriteString(fmt.Sprintf("\n  %s to confirm, %s to cancel\n",
+	fmt.Fprintf(&b, "\n  %s to confirm, %s to cancel\n",
 		StyleTitle.Render("Enter"),
 		StyleMuted.Render("Esc"),
-	))
+	)
 	return b.String()
 }

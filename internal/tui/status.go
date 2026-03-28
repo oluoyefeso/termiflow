@@ -51,7 +51,6 @@ func loadStatus() tea.Cmd {
 		cfg := config.Get()
 		data := statusData{}
 
-		// Mode
 		if config.IsManagedMode() {
 			data.Mode = "Managed"
 			data.APIKey = maskKey(cfg.Providers.Managed.APIKey)
@@ -61,7 +60,6 @@ func loadStatus() tea.Cmd {
 			data.Provider = cfg.General.DefaultProvider
 		}
 
-		// Subscriptions
 		subs, err := db.GetActiveSubscriptions()
 		if err == nil {
 			data.Subscriptions = len(subs)
@@ -74,7 +72,6 @@ func loadStatus() tea.Cmd {
 			}
 		}
 
-		// DB info
 		dataDir := config.GetDataDir()
 		dbPath := filepath.Join(dataDir, "termiflow.db")
 		data.DBPath = dbPath
@@ -87,7 +84,6 @@ func loadStatus() tea.Cmd {
 			}
 		}
 
-		// Config path
 		data.ConfigPath = config.GetConfigPath()
 
 		return statusLoadedMsg{data: data}
@@ -131,19 +127,24 @@ func (m StatusModel) Update(msg tea.Msg) (StatusModel, tea.Cmd) {
 	return m, nil
 }
 
-func (m StatusModel) View() string {
+// Breadcrumb returns breadcrumb segments for the status screen.
+func (m StatusModel) Breadcrumb() []string {
+	return []string{"STATUS"}
+}
+
+// StatusHints returns keybinding hints for the status screen.
+func (m StatusModel) StatusHints() []components.KeyHint {
+	return nil // only esc/back, added by AppModel
+}
+
+// ContentView renders the status screen as bordered info cards.
+func (m StatusModel) ContentView() string {
 	w := m.width
 	if w == 0 {
 		w = 69
 	}
 
 	var b strings.Builder
-
-	// Header
-	top := StyleMuted.Render(Bar("═", w))
-	title := StyleAccent.Render("STATUS")
-	bot := StyleMuted.Render(Bar("═", w))
-	b.WriteString(fmt.Sprintf("%s\n  %s\n%s\n", top, title, bot))
 
 	if m.loading {
 		b.WriteString(StyleMuted.Render("\n  Loading..."))
@@ -155,48 +156,51 @@ func (m StatusModel) View() string {
 		return b.String()
 	}
 
+	cardWidth := w - 2
+	if cardWidth > 60 {
+		cardWidth = 60
+	}
+
 	b.WriteString("\n")
 
-	// Mode
-	b.WriteString(infoRow("Mode", m.data.Mode))
+	// CONNECTION card
+	var connLines []string
+	connLines = append(connLines, infoCardRow("Mode", m.data.Mode))
 	if m.data.Mode == "Managed" {
-		b.WriteString(infoRow("API Key", m.data.APIKey))
-		b.WriteString(infoRow("Base URL", m.data.BaseURL))
+		connLines = append(connLines, infoCardRow("API Key", m.data.APIKey))
+		connLines = append(connLines, infoCardRow("Base URL", m.data.BaseURL))
 	} else {
-		b.WriteString(infoRow("Provider", m.data.Provider))
+		connLines = append(connLines, infoCardRow("Provider", m.data.Provider))
 	}
+	b.WriteString("  " + RenderCard("CONNECTION", connLines, cardWidth))
+	b.WriteString("\n\n")
 
-	b.WriteString("\n")
+	// DATA card
+	var dataLines []string
+	dataLines = append(dataLines, infoCardRow("Subscriptions", fmt.Sprintf("%d active", m.data.Subscriptions)))
+	dataLines = append(dataLines, infoCardRow("Total Items", fmt.Sprintf("%d (%d unread)", m.data.TotalItems, m.data.TotalUnread)))
+	b.WriteString("  " + RenderCard("DATA", dataLines, cardWidth))
+	b.WriteString("\n\n")
 
-	// Subscriptions
-	b.WriteString(infoRow("Subscriptions", fmt.Sprintf("%d active", m.data.Subscriptions)))
-	b.WriteString(infoRow("Total Items", fmt.Sprintf("%d (%d unread)", m.data.TotalItems, m.data.TotalUnread)))
-
-	b.WriteString("\n")
-
-	// Database
-	b.WriteString(infoRow("Database", m.data.DBPath))
+	// SYSTEM card
+	var sysLines []string
+	sysLines = append(sysLines, infoCardRow("Database", m.data.DBPath))
 	if m.data.DBSize != "" {
-		b.WriteString(infoRow("DB Size", m.data.DBSize))
+		sysLines = append(sysLines, infoCardRow("DB Size", m.data.DBSize))
 	}
-	b.WriteString(infoRow("Config", m.data.ConfigPath))
-
-	// Status bar
+	sysLines = append(sysLines, infoCardRow("Config", m.data.ConfigPath))
+	b.WriteString("  " + RenderCard("SYSTEM", sysLines, cardWidth))
 	b.WriteString("\n")
-	hints := []components.KeyHint{
-		{Key: "esc", Desc: "back"},
-	}
-	b.WriteString(components.NewStatusBar(hints, w).View())
 
 	return b.String()
 }
 
-func infoRow(label, value string) string {
+func infoCardRow(label, value string) string {
 	padding := 16 - len(label)
 	if padding < 1 {
 		padding = 1
 	}
-	return fmt.Sprintf("   %s%s%s\n",
+	return fmt.Sprintf("%s%s%s",
 		StyleMuted.Render(label+":"),
 		strings.Repeat(" ", padding),
 		value,

@@ -81,6 +81,7 @@ type OpenDetailMsg struct {
 	Item  *models.FeedItem
 	Items []*models.FeedItem // full list for n/p navigation
 	Index int                // position in the list
+	Topic string             // topic name for breadcrumb
 }
 
 // NavigateArticleMsg asks to move to the next or previous article in detail view.
@@ -154,3 +155,13 @@ type AvailableCategory struct {
 type ErrMsg struct {
 	Err error
 }
+
+// PerTopicRefreshMsg signals that one subscription's refresh completed (for inline status).
+type PerTopicRefreshMsg struct {
+	Topic    string
+	NewItems int
+	Err      error
+}
+
+// SaveFlashExpiredMsg signals that the save confirmation should fade to muted.
+type SaveFlashExpiredMsg struct{}

@@ -49,7 +49,7 @@ func GetProvider(name string, cfg *config.Config) (Provider, error) {
 	if os.Getenv("TERMIFLOW_MOCK") == "true" {
 		p := NewMockProvider()
 		if p == nil {
-			return nil, fmt.Errorf("TERMIFLOW_MOCK=true requires building with -tags mock: go build -tags mock ./...")
+			return nil, fmt.Errorf("TERMIFLOW_MOCK=true requires building with -tags mock")
 		}
 		return p, nil
 	}
