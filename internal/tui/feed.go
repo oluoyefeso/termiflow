@@ -231,12 +231,17 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 		return b.String()
 	}
 
+	// Section header
+	b.WriteString("\n")
+	b.WriteString(SectionHeader("RECENT_INTELLIGENCE", m.topic, w))
+	b.WriteString("\n")
+
 	// Count label
 	countLabel := fmt.Sprintf("%d items", len(m.filtered))
 	if m.unreadOnly {
 		countLabel += " (unread)"
 	}
-	fmt.Fprintf(&b, "\n  %s\n", StyleMuted.Render(countLabel))
+	fmt.Fprintf(&b, "  %s\n", StyleMuted.Render(countLabel))
 
 	if len(m.filtered) == 0 {
 		msg := "No items"
@@ -267,10 +272,10 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 	if visibleHeight < 3 {
 		visibleHeight = 30 // fallback for uninitialized height
 	}
-	// Each item takes 2 lines + 1 blank = 3 lines
-	visibleItems := visibleHeight / 3
+	// Each item takes ~5 lines (border + title + summary + meta + separator)
+	visibleItems := visibleHeight / 5
 	if visibleItems < 1 {
-		visibleItems = 10
+		visibleItems = 8
 	}
 
 	// Scroll window
@@ -287,6 +292,9 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 	for i := startIdx; i < endIdx; i++ {
 		item := m.filtered[i]
 		b.WriteString(m.renderItem(item, i == m.cursor, w))
+		if i < endIdx-1 {
+			b.WriteString("    " + DashRule(w-6) + "\n")
+		}
 	}
 
 	// Scroll indicator
@@ -300,37 +308,36 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 func (m FeedModel) renderItem(item *models.FeedItem, selected bool, width int) string {
 	var b strings.Builder
 
-	// Read indicator
-	readDot := StyleSuccess.Render("●")
-	if item.IsRead {
-		readDot = StyleMuted.Render("○")
+	// Left border character based on read state
+	borderChar := StyleLeftBorderMuted.Render("│")
+	if !item.IsRead {
+		borderChar = StyleLeftBorder.Render("│")
 	}
 
-	// Cursor
-	cursor := "  "
-	titleStyle := StyleMuted
+	// Title style
+	titleStyle := lipgloss.NewStyle().Foreground(ColorSecondary)
 	if !item.IsRead {
-		titleStyle = lipgloss.NewStyle().Foreground(ColorAccent)
+		titleStyle = lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
 	}
 	if selected {
-		cursor = StyleSelectedIndicator.Render("▸ ")
 		if !item.IsRead {
 			titleStyle = lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
 		} else {
 			titleStyle = StyleSelected
 		}
+		borderChar = StyleLeftBorder.Render("│")
 	}
 
 	// Relevance micro-bar (right-aligned, fixed width)
 	var scoreStr string
 	if item.RelevanceScore > 0 {
 		pct := fmt.Sprintf("%3.0f%%", item.RelevanceScore*100)
-		scoreStr = RelevanceBar(item.RelevanceScore) + " " + StyleMuted.Render(pct)
+		scoreStr = RelevanceBar(item.RelevanceScore) + " " + StyleWarmMuted.Render(pct)
 	}
 
-	// Title (truncated with muted ellipsis)
-	title := item.Title
-	maxTitleWidth := width - 20 // space for cursor + dot + score + padding
+	// Title — uppercase (truncated with muted ellipsis)
+	title := strings.ToUpper(item.Title)
+	maxTitleWidth := width - 20 // space for border + score + padding
 	if maxTitleWidth < 10 {
 		maxTitleWidth = 10
 	}
@@ -345,8 +352,14 @@ func (m FeedModel) renderItem(item *models.FeedItem, selected bool, width int) s
 		title = titleStyle.Render(title)
 	}
 
-	// Line 1: cursor + dot + title + score (right-aligned)
-	line1Left := fmt.Sprintf("  %s%s %s", cursor, readDot, title)
+	// Cursor indicator
+	cursor := " "
+	if selected {
+		cursor = StyleSelectedIndicator.Render("▸")
+	}
+
+	// Line 1: border + title + score (right-aligned)
+	line1Left := fmt.Sprintf("  %s %s %s", cursor, borderChar, title)
 	line1LeftWidth := lipgloss.Width(line1Left)
 	scoreWidth := lipgloss.Width(scoreStr)
 	pad := width - line1LeftWidth - scoreWidth - 1
@@ -362,10 +375,25 @@ func (m FeedModel) renderItem(item *models.FeedItem, selected bool, width int) s
 	}
 	b.WriteString(line1 + "\n")
 
-	// Line 2: source · time
-	meta := fmt.Sprintf("      %s · %s",
-		StyleMuted.Render(item.SourceName),
-		StyleMuted.Render(item.TimeAgo()),
+	// Line 2: summary (italic, warm muted)
+	if item.Summary != "" {
+		summaryWidth := width - 10
+		if summaryWidth < 20 {
+			summaryWidth = 20
+		}
+		summary := item.Summary
+		summaryRunes := []rune(summary)
+		if len(summaryRunes) > summaryWidth {
+			summary = string(summaryRunes[:summaryWidth-3]) + "..."
+		}
+		fmt.Fprintf(&b, "    %s %s\n", borderChar, StyleSummary.Render(summary))
+	}
+
+	// Line 3: uppercase metadata — SOURCE: name    TIMESTAMP: time
+	meta := fmt.Sprintf("    %s %s    %s",
+		borderChar,
+		StyleMuted.Render("SOURCE: "+strings.ToUpper(item.SourceName)),
+		StyleMuted.Render("TIMESTAMP: "+strings.ToUpper(item.TimeAgo())),
 	)
 	b.WriteString(meta + "\n")
 

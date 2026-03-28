@@ -3,14 +3,14 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Bloomberg terminal palette: amber on dark, dense and functional
-	Primary      = lipgloss.Color("214") // Amber
-	Secondary    = lipgloss.Color("244") // Light gray
-	SuccessColor = lipgloss.Color("82")  // Green
+	// Termiflow palette — warm amber on dark, matching termiflow.com (#f5a623)
+	Primary      = lipgloss.Color("214") // Amber (#f5a623)
+	Secondary    = lipgloss.Color("180") // Warm tan (#d7c3ae)
+	SuccessColor = lipgloss.Color("78")  // Green (#22c55e)
 	WarningColor = lipgloss.Color("208") // Orange
 	ErrorColor   = lipgloss.Color("196") // Red
-	Muted        = lipgloss.Color("240") // Dark gray
-	Accent       = lipgloss.Color("220") // Bright amber (headlines)
+	Muted        = lipgloss.Color("242") // Dark gray (#666666)
+	Accent       = lipgloss.Color("220") // Bright amber (#ffb955)
 
 	// Text styles
 	TitleStyle = lipgloss.NewStyle().
@@ -32,6 +32,10 @@ var (
 	MutedStyle = lipgloss.NewStyle().
 			Foreground(Muted)
 
+	// Warm muted for secondary text (source, time, descriptions)
+	WarmMutedStyle = lipgloss.NewStyle().
+			Foreground(Secondary)
+
 	BoldStyle = lipgloss.NewStyle().
 			Bold(true)
 
@@ -40,7 +44,7 @@ var (
 			Bold(true)
 
 	// Banner colors
-	CyanColor = lipgloss.Color("51") // Cyan (info banners)
+	CyanColor = lipgloss.Color("39") // Cyan (#3ac2ff)
 	BlueColor = lipgloss.Color("33") // Blue (update/version banners)
 
 	CyanStyle = lipgloss.NewStyle().
@@ -49,7 +53,7 @@ var (
 	BlueStyle = lipgloss.NewStyle().
 			Foreground(BlueColor)
 
-	// Tags: compact bracket style
+	// Tags: uppercase, no brackets
 	TagStyle = lipgloss.NewStyle().
 			Foreground(Primary)
 
