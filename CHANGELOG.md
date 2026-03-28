@@ -2,6 +2,19 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.8.0] - 2026-03-28 — Styling Refresh
+
+### Changed
+- **Color palette aligned with termiflow.com**: Secondary text now uses warm tan (`#d7c3ae`) instead of cool gray. Muted text, cyan, and success green tuned to match website hex values.
+- **`>>` section headers**: LabeledRule and section headers use `>> LABEL ═══` format in amber instead of `── Label ──` in muted gray. New `SectionHeader` function for `>> LABEL // CATEGORY: VALUE` format.
+- **Left border accents on feed items**: Unread items show amber `│` left border, read items show muted border. Replaces the old dot-based read indicators.
+- **Uppercase formatting**: Topic names, article titles, metadata labels, and tags now render in uppercase for the intelligence terminal aesthetic.
+- **Italic summaries**: Feed item summaries and detail view content use italic warm muted styling for clear visual hierarchy.
+- **Structured metadata**: Source and timestamp display as `SOURCE: NAME    TIMESTAMP: TIME` in uppercase instead of `source · time`.
+- **Tags without brackets**: Tags render as bare uppercase words with double spacing instead of `[tag]` format.
+- **Dash separators between feed items**: Items separated by `───` dash rules instead of blank lines.
+- **Warm muted secondary text**: Frequency, last-fetch time, status bar descriptions, and position indicators use warm tan instead of cool gray.
+
 ## [0.3.7.0] - 2026-03-28 — Custom Sources (RSS/Blog Subscriptions)
 
 ### Added
