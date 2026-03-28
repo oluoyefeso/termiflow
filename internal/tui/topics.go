@@ -296,11 +296,6 @@ func (m TopicsModel) StatusHints() []components.KeyHint {
 
 // ContentView renders the topics browser content without header/footer chrome.
 func (m TopicsModel) ContentView() string {
-	w := m.width
-	if w == 0 {
-		w = 69
-	}
-
 	var b strings.Builder
 
 	if m.loading {
