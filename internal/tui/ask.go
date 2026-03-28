@@ -32,17 +32,18 @@ const (
 
 // AskModel is the inline Q&A screen.
 type AskModel struct {
-	input    textinput.Model
-	phase    askPhase
-	question string
-	answer   strings.Builder
-	sources  []AskSource
-	scrollY  int
-	width    int
-	height   int
-	err      error
-	cancel   context.CancelFunc
-	saved    string // path if saved
+	input     textinput.Model
+	phase     askPhase
+	question  string
+	answer    strings.Builder
+	sources   []AskSource
+	scrollY   int
+	width     int
+	height    int
+	err       error
+	cancel    context.CancelFunc
+	saved     string // path if saved
+	saveFlash bool   // true = green, false = muted (after 3s)
 }
 
 func NewAskModel() AskModel {
@@ -62,12 +63,10 @@ func (m AskModel) Init() tea.Cmd {
 }
 
 // searchAndStream is a two-phase command: search for sources, then stream LLM response.
-// It sends AskSourcesLoadedMsg, then a series of AskChunkMsg.
 func searchAndStream(question string, ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		cfg := config.Get()
 
-		// Phase 1: Search for sources
 		var sources []AskSource
 		searchProv, err := search.GetSearchProvider(cfg)
 		if err == nil && searchProv.Available() {
@@ -91,7 +90,7 @@ func searchAndStream(question string, ctx context.Context) tea.Cmd {
 	}
 }
 
-// streamLLM starts the LLM streaming and returns a Cmd that reads the first chunk.
+// streamLLM starts the LLM streaming.
 func streamLLM(question string, sources []AskSource, ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		cfg := config.Get()
@@ -118,7 +117,6 @@ func streamLLM(question string, sources []AskSource, ctx context.Context) tea.Cm
 			return AskChunkMsg{Err: err, Done: true}
 		}
 
-		// Read first chunk and return it
 		chunk, ok := <-chunks
 		if !ok {
 			return AskChunkMsg{Done: true}
@@ -129,19 +127,16 @@ func streamLLM(question string, sources []AskSource, ctx context.Context) tea.Cm
 		if chunk.Done {
 			return AskChunkMsg{Done: true}
 		}
-		// Store the channel in a closure for subsequent reads
 		return askStreamState{content: chunk.Content, chunks: chunks}
 	}
 }
 
 // askStreamState carries the channel for subsequent reads.
-// This is a tea.Msg that triggers the next read.
 type askStreamState struct {
 	content string
 	chunks  <-chan llm.StreamChunk
 }
 
-// readNextChunk reads the next chunk from the channel.
 func readNextChunk(chunks <-chan llm.StreamChunk) tea.Cmd {
 	return func() tea.Msg {
 		chunk, ok := <-chunks
@@ -161,7 +156,6 @@ func readNextChunk(chunks <-chan llm.StreamChunk) tea.Cmd {
 func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case AskSourcesLoadedMsg:
-		// Reject stale messages if we've already canceled or moved on
 		if m.phase == askPhaseDone || m.phase == askPhaseInput {
 			return m, nil
 		}
@@ -172,7 +166,6 @@ func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 		}
 		m.sources = msg.Sources
 		m.phase = askPhaseStreaming
-		// Cancel old context before creating new one
 		if m.cancel != nil {
 			m.cancel()
 		}
@@ -181,7 +174,6 @@ func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 		return m, streamLLM(m.question, m.sources, ctx)
 
 	case askStreamState:
-		// Reject stale chunks if we're no longer streaming
 		if m.phase != askPhaseStreaming {
 			return m, nil
 		}
@@ -200,7 +192,15 @@ func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 			m.err = msg.Err
 		} else {
 			m.saved = msg.Path
+			m.saveFlash = true
+			return m, tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+				return SaveFlashExpiredMsg{}
+			})
 		}
+		return m, nil
+
+	case SaveFlashExpiredMsg:
+		m.saveFlash = false
 		return m, nil
 
 	case tea.KeyMsg:
@@ -208,7 +208,6 @@ func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 		case askPhaseInput:
 			return m.updateInput(msg)
 		case askPhaseSearching, askPhaseStreaming:
-			// Ctrl+C cancels the in-flight request
 			if msg.String() == "ctrl+c" {
 				if m.cancel != nil {
 					m.cancel()
@@ -242,8 +241,8 @@ func (m *AskModel) updateInput(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 		m.scrollY = 0
 		m.err = nil
 		m.saved = ""
+		m.saveFlash = false
 		m.input.Blur()
-		// Cancel any previous context before creating a new one
 		if m.cancel != nil {
 			m.cancel()
 		}
@@ -264,7 +263,6 @@ func (m *AskModel) updateInput(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 func (m *AskModel) updateDone(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 	switch {
 	case key.Matches(msg, AskKeys.Back):
-		// Cancel any lingering context and reset for a new question
 		if m.cancel != nil {
 			m.cancel()
 		}
@@ -275,6 +273,7 @@ func (m *AskModel) updateDone(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 		m.scrollY = 0
 		m.err = nil
 		m.saved = ""
+		m.saveFlash = false
 		return *m, textinput.Blink
 	case key.Matches(msg, AskKeys.Save):
 		if m.saved == "" && m.answer.Len() > 0 {
@@ -285,7 +284,6 @@ func (m *AskModel) updateDone(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 			m.scrollY--
 		}
 	case key.Matches(msg, AskKeys.Down):
-		// Rough upper bound based on answer length to prevent runaway scroll
 		maxScroll := strings.Count(m.answer.String(), "\n") + len(m.sources) + 5
 		if m.scrollY < maxScroll {
 			m.scrollY++
@@ -294,37 +292,71 @@ func (m *AskModel) updateDone(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 	return *m, nil
 }
 
-func (m AskModel) View() string {
+// Breadcrumb returns breadcrumb segments for the ask screen.
+func (m AskModel) Breadcrumb() []string {
+	return []string{"ASK"}
+}
+
+// StatusHints returns keybinding hints for the ask screen.
+func (m AskModel) StatusHints() []components.KeyHint {
+	switch m.phase {
+	case askPhaseInput:
+		return []components.KeyHint{
+			{Key: "enter", Desc: "ask"},
+		}
+	case askPhaseSearching, askPhaseStreaming:
+		return []components.KeyHint{
+			{Key: "ctrl+c", Desc: "cancel"},
+		}
+	case askPhaseDone:
+		return []components.KeyHint{
+			{Key: "s", Desc: "save"},
+			{Key: "j/k", Desc: "scroll"},
+		}
+	}
+	return nil
+}
+
+// ContentView renders the ask screen content without header/footer chrome.
+func (m AskModel) ContentView(spinnerFrame int) string {
 	w := m.width
 	if w == 0 {
 		w = 69
 	}
 
-	var b strings.Builder
+	// Content width capped at 72 for readability
+	contentWidth := w - 4
+	if contentWidth > 72 {
+		contentWidth = 72
+	}
 
-	// Header
-	top := StyleMuted.Render(Bar("═", w))
-	title := StyleAccent.Render("ASK")
-	bot := StyleMuted.Render(Bar("═", w))
-	b.WriteString(fmt.Sprintf("%s\n  %s\n%s\n", top, title, bot))
+	var b strings.Builder
 
 	switch m.phase {
 	case askPhaseInput:
 		b.WriteString("\n")
 		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render(">"), m.input.View()))
 		b.WriteString("\n")
-		b.WriteString(StyleMuted.Render("  Type a question and press Enter. Esc to go back."))
+		b.WriteString(StyleMuted.Render("  Type a question and press Enter."))
 		b.WriteString("\n")
 
 	case askPhaseSearching:
 		b.WriteString("\n")
 		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render("Q:"), m.question))
-		b.WriteString(fmt.Sprintf("\n  %s\n", StyleCyan.Render("⟳ Searching for sources...")))
+		b.WriteString("\n")
+		dots := AnimatedDots(spinnerFrame)
+		b.WriteString(fmt.Sprintf("  %s Searching%s\n",
+			AnimatedSpinner(spinnerFrame),
+			StyleCyan.Render(dots)))
 
 	case askPhaseStreaming, askPhaseDone:
 		b.WriteString("\n")
 		b.WriteString(fmt.Sprintf("  %s %s\n", StyleTitle.Render("Q:"), m.question))
 		b.WriteString("\n")
+
+		// Horizontal rule between Q and answer
+		b.WriteString("  " + StyleMuted.Render(strings.Repeat("─", contentWidth)))
+		b.WriteString("\n\n")
 
 		// Build content lines
 		var lines []string
@@ -332,7 +364,7 @@ func (m AskModel) View() string {
 		// Answer
 		answerText := m.answer.String()
 		if answerText != "" {
-			wrapped := wrapText(answerText, w-4)
+			wrapped := wrapText(answerText, contentWidth)
 			for _, line := range strings.Split(wrapped, "\n") {
 				lines = append(lines, "  "+line)
 			}
@@ -348,15 +380,24 @@ func (m AskModel) View() string {
 			lines = append(lines, StyleError.Render(fmt.Sprintf("  Error: %v", m.err)))
 		}
 
-		// Sources
+		// Sources (labeled rule)
 		if len(m.sources) > 0 && m.phase == askPhaseDone {
 			lines = append(lines, "")
-			lines = append(lines, StyleMuted.Render("  "+Bar("─", w-4)))
-			lines = append(lines, StyleTitle.Render("  Sources:"))
+			lines = append(lines, "  "+LabeledRule("Sources", contentWidth))
+
+			// Find max domain width for alignment
+			maxDomain := 0
+			for _, src := range m.sources {
+				if len(src.Domain) > maxDomain {
+					maxDomain = len(src.Domain)
+				}
+			}
+
 			for i, src := range m.sources {
-				lines = append(lines, fmt.Sprintf("   [%d] %s %s",
+				domain := PadRight(StyleMuted.Render(src.Domain), maxDomain+4)
+				lines = append(lines, fmt.Sprintf("   %d  %s%s",
 					i+1,
-					StyleMuted.Render(src.Domain),
+					domain,
 					src.Title,
 				))
 			}
@@ -365,11 +406,15 @@ func (m AskModel) View() string {
 		// Saved status
 		if m.saved != "" {
 			lines = append(lines, "")
-			lines = append(lines, StyleSuccess.Render("  ✓ Saved to "+m.saved))
+			if m.saveFlash {
+				lines = append(lines, StyleSuccess.Render("  ✓ Saved to "+m.saved))
+			} else {
+				lines = append(lines, StyleMuted.Render("  ✓ Saved to "+m.saved))
+			}
 		}
 
 		// Apply scroll
-		viewportHeight := m.height - 10
+		viewportHeight := m.height - 8
 		if viewportHeight < 5 {
 			viewportHeight = 20
 		}
@@ -396,31 +441,9 @@ func (m AskModel) View() string {
 		}
 	}
 
-	// Status bar
-	var hints []components.KeyHint
-	switch m.phase {
-	case askPhaseInput:
-		hints = []components.KeyHint{
-			{Key: "enter", Desc: "ask"},
-			{Key: "esc", Desc: "back"},
-		}
-	case askPhaseSearching, askPhaseStreaming:
-		hints = []components.KeyHint{
-			{Key: "ctrl+c", Desc: "cancel"},
-		}
-	case askPhaseDone:
-		hints = []components.KeyHint{
-			{Key: "s", Desc: "save"},
-			{Key: "j/k", Desc: "scroll"},
-			{Key: "esc", Desc: "new question"},
-		}
-	}
-	b.WriteString("\n" + components.NewStatusBar(hints, w).View())
-
 	return b.String()
 }
 
-// buildAskPrompt constructs the prompt with source context.
 func buildAskPrompt(question string, sources []AskSource) string {
 	var sb strings.Builder
 
@@ -437,7 +460,6 @@ func buildAskPrompt(question string, sources []AskSource) string {
 	return sb.String()
 }
 
-// getDomain extracts the domain from a URL.
 func getDomain(url string) string {
 	url = strings.TrimPrefix(url, "https://")
 	url = strings.TrimPrefix(url, "http://")
@@ -449,7 +471,6 @@ func getDomain(url string) string {
 	return url
 }
 
-// saveAskResult writes the Q&A to a markdown file.
 func saveAskResult(question, answer string, sources []AskSource) tea.Cmd {
 	return func() tea.Msg {
 		saveDir := getAskSaveDir()
@@ -493,9 +514,6 @@ func getAskSaveDir() string {
 	return filepath.Join(home, ".local", "share", "termiflow", "saved")
 }
 
-// buildUserContext queries the user's termiflow state and formats it as context
-// for the system prompt, so the LLM can answer questions like "how many subscriptions
-// do I have?" or "when was rust-lang last refreshed?".
 func buildUserContext() string {
 	subs, err := db.GetActiveSubscriptions()
 	if err != nil || len(subs) == 0 {
