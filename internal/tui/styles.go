@@ -78,6 +78,18 @@ var (
 				Foreground(ColorMuted)
 )
 
+// HealthDot returns a colored dot for the given health status.
+func HealthDot(status string) string {
+	switch status {
+	case "ok":
+		return StyleSuccess.Render("●")
+	case "degraded":
+		return StyleError.Render("●")
+	default:
+		return StyleMuted.Render("●")
+	}
+}
+
 // Bar returns a horizontal rule of the given character repeated width times.
 func Bar(ch string, width int) string {
 	if width <= 0 {

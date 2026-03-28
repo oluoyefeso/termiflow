@@ -9,6 +9,7 @@ import (
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
@@ -25,6 +26,7 @@ type StatusOutputJSON struct {
 	Provider      string             `json:"provider,omitempty"`
 	APIKey        string             `json:"api_key,omitempty"`
 	BaseURL       string             `json:"base_url,omitempty"`
+	APIStatus     string             `json:"api_status,omitempty"`
 	Subscriptions []SubscriptionJSON `json:"subscriptions"`
 	Database      DatabaseJSON       `json:"database"`
 	ConfigPath    string             `json:"config_path"`
@@ -68,6 +70,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			baseURL = "https://api.termiflow.com"
 		}
 		fmt.Print(ui.Info("Base URL", baseURL))
+		healthStatus := llm.CheckHealthCached(baseURL)
+		fmt.Print(ui.Info("API Status", ui.HealthDot(healthStatus)+" "+healthStatus))
 	} else {
 		fmt.Print(ui.Info("Mode", "Self-hosted"))
 		fmt.Print(ui.Info("Provider", cfg.General.DefaultProvider))
@@ -124,6 +128,7 @@ func renderStatusJSON(cfg *config.Config) error {
 			baseURL = "https://api.termiflow.com"
 		}
 		out.BaseURL = baseURL
+		out.APIStatus = llm.CheckHealthCached(baseURL)
 	} else {
 		out.Mode = "self-hosted"
 		out.Provider = cfg.General.DefaultProvider

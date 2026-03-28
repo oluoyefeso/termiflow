@@ -165,3 +165,9 @@ type PerTopicRefreshMsg struct {
 
 // SaveFlashExpiredMsg signals that the save confirmation should fade to muted.
 type SaveFlashExpiredMsg struct{}
+
+// HealthCheckMsg carries the result of an API health check.
+type HealthCheckMsg struct {
+	Status string // "ok", "degraded", "unknown"
+	Err    error
+}
