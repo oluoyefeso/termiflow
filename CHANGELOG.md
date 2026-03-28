@@ -2,6 +2,13 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.3.0] - 2026-03-28 — errcheck Linter + Ask Context Injection
+
+### Added
+- **errcheck linter re-enabled**: Catches unchecked error returns in Go code. Configured with exclude-functions for common patterns (defer Close, test helpers, JSON encoding). Prevents new code from silently ignoring errors.
+- **User context in CLI ask command**: The `termiflow ask` command now injects subscription state (topics, unread counts, mode) into the LLM system prompt, matching the TUI behavior. Ask "how many subscriptions do I have?" and get a real answer.
+- **Shared `db.BuildUserContext()` function**: Extracted from TUI-only code to `internal/db/context.go` so both CLI and TUI ask commands use the same context builder. No duplication.
+
 ## [0.3.2.1] - 2026-03-28 — Persistent Announcements
 
 ### Changed
