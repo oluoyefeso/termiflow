@@ -152,11 +152,8 @@ func (m *Manager) GetBanners() []BannerInfo {
 		}
 	}
 
-	// Show undismissed announcements
+	// Show all active announcements (shown every run until they expire)
 	for _, ann := range m.cache.Announcements {
-		if _, dismissed := m.dismissed.DismissedIDs[ann.ID]; dismissed {
-			continue
-		}
 		// Skip expired announcements still in cache
 		if ann.ExpiresAt != nil {
 			if t, err := time.Parse(time.RFC3339, *ann.ExpiresAt); err == nil && time.Now().UTC().After(t) {
@@ -172,26 +169,19 @@ func (m *Manager) GetBanners() []BannerInfo {
 	return banners
 }
 
-// MarkDisplayed marks banners as dismissed so they won't be shown again.
+// MarkDisplayed marks version update banners as dismissed so they show once per version.
+// Announcements are NOT dismissed — they show on every run until they expire on the server.
 func (m *Manager) MarkDisplayed(banners []BannerInfo) {
+	changed := false
 	for _, b := range banners {
 		if b.Type == "version" {
 			m.dismissed.DismissedVersions = append(m.dismissed.DismissedVersions, m.cache.LatestVersion)
-		}
-		if b.Type == "breaking" {
-			continue // Always show breaking banners
+			changed = true
 		}
 	}
-	for _, ann := range m.cache.Announcements {
-		if _, dismissed := m.dismissed.DismissedIDs[ann.ID]; !dismissed {
-			expiresAt := ""
-			if ann.ExpiresAt != nil {
-				expiresAt = *ann.ExpiresAt
-			}
-			m.dismissed.DismissedIDs[ann.ID] = expiresAt
-		}
+	if changed {
+		m.saveDismissedFile()
 	}
-	m.saveDismissedFile()
 }
 
 func (m *Manager) isVersionDismissed(version string) bool {

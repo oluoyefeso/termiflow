@@ -2,6 +2,11 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.2.1] - 2026-03-28 — Persistent Announcements
+
+### Changed
+- **Announcements show every run until they expire**: Previously, announcements were dismissed after a single view. Now they persist on every CLI/TUI invocation until the server removes or expires them. Version update banners still show once per version.
+
 ## [0.3.2.0] - 2026-03-28 — Notification Banner Fixes
 
 ### Fixed

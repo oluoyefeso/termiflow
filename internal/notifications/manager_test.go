@@ -196,16 +196,18 @@ func TestGetBannersAnnouncements(t *testing.T) {
 }
 
 func TestGetBannersDismissed(t *testing.T) {
+	// Announcements are never dismissed — they show every run until they expire.
+	// Only version update banners are dismissed (once per version).
 	m, dir := testManager(t, true)
 	writeCache(t, dir, Cache{
 		LatestVersion: "1.0.0",
 		FetchedAt:     time.Now().UTC().Format(time.RFC3339),
 		Announcements: []Announcement{
 			{ID: "ann_1", Type: "info", Message: "Seen this"},
-			{ID: "ann_2", Type: "info", Message: "Not seen"},
+			{ID: "ann_2", Type: "info", Message: "Also seen"},
 		},
 	})
-	// Write dismissed state
+	// Write dismissed state (should not affect announcements)
 	dismissed := DismissedState{
 		DismissedIDs: map[string]string{"ann_1": ""},
 	}
@@ -215,15 +217,13 @@ func TestGetBannersDismissed(t *testing.T) {
 	m.LoadCache()
 
 	banners := m.GetBanners()
-	if len(banners) != 1 {
-		t.Fatalf("expected 1 banner (ann_1 dismissed), got %d", len(banners))
-	}
-	if banners[0].Message != "Not seen" {
-		t.Errorf("message = %q", banners[0].Message)
+	if len(banners) != 2 {
+		t.Fatalf("expected 2 banners (announcements always show), got %d", len(banners))
 	}
 }
 
 func TestMarkDisplayedPersists(t *testing.T) {
+	// MarkDisplayed should dismiss version banners but NOT announcements.
 	m, dir := testManager(t, true)
 	writeCache(t, dir, Cache{
 		LatestVersion: "2.0.0",
@@ -245,9 +245,11 @@ func TestMarkDisplayedPersists(t *testing.T) {
 	var dismissed DismissedState
 	json.Unmarshal(data, &dismissed)
 
-	if _, ok := dismissed.DismissedIDs["ann_1"]; !ok {
-		t.Error("ann_1 should be in dismissed IDs")
+	// Announcements should NOT be in dismissed IDs
+	if _, ok := dismissed.DismissedIDs["ann_1"]; ok {
+		t.Error("ann_1 should NOT be in dismissed IDs — announcements show every run")
 	}
+	// Version update should be dismissed (shown once per version)
 	if len(dismissed.DismissedVersions) != 1 || dismissed.DismissedVersions[0] != "2.0.0" {
 		t.Error("version 2.0.0 should be in dismissed versions")
 	}
