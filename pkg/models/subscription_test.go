@@ -136,6 +136,46 @@ func TestSubscription_GetTimeRange(t *testing.T) {
 	}
 }
 
+func TestSubscription_IsSourceSubscription(t *testing.T) {
+	tests := []struct {
+		sourceType string
+		want       bool
+	}{
+		{"feed", true},
+		{"scrape", true},
+		{"topic", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		sub := &Subscription{SourceType: tt.sourceType}
+		if got := sub.IsSourceSubscription(); got != tt.want {
+			t.Errorf("IsSourceSubscription() with %q = %v, want %v", tt.sourceType, got, tt.want)
+		}
+	}
+}
+
+func TestSubscription_ScoringTopic(t *testing.T) {
+	tests := []struct {
+		name       string
+		sub        Subscription
+		want       string
+	}{
+		{"topic sub uses Topic", Subscription{Topic: "rust-lang", SourceType: "topic"}, "rust-lang"},
+		{"empty source_type uses Topic", Subscription{Topic: "go-lang"}, "go-lang"},
+		{"feed with context uses Context", Subscription{SourceType: "feed", Context: "AI", DisplayName: "Blog", Topic: "Blog"}, "AI"},
+		{"feed without context uses DisplayName", Subscription{SourceType: "feed", DisplayName: "My Blog", Topic: "My Blog"}, "My Blog"},
+		{"feed with no context or display uses Topic", Subscription{SourceType: "feed", Topic: "fallback"}, "fallback"},
+		{"scrape with context", Subscription{SourceType: "scrape", Context: "Security", Topic: "site.com"}, "Security"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.sub.ScoringTopic(); got != tt.want {
+				t.Errorf("ScoringTopic() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSubscription_RoundTrip(t *testing.T) {
 	original := []string{"tavily", "rss", "scrape"}
 	sub := &Subscription{}
