@@ -6,16 +6,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Bloomberg terminal palette — matches internal/ui/colors.go
+// Termiflow palette — warm amber on dark, matching termiflow.com (#f5a623)
 var (
-	ColorPrimary   = lipgloss.Color("214") // Amber
-	ColorSecondary = lipgloss.Color("244") // Light gray
-	ColorSuccess   = lipgloss.Color("82")  // Green
+	ColorPrimary   = lipgloss.Color("214") // Amber (#f5a623)
+	ColorSecondary = lipgloss.Color("180") // Warm tan (#d7c3ae)
+	ColorSuccess   = lipgloss.Color("78")  // Green (#22c55e)
 	ColorWarning   = lipgloss.Color("208") // Orange
 	ColorError     = lipgloss.Color("196") // Red
-	ColorMuted     = lipgloss.Color("240") // Dark gray
-	ColorAccent    = lipgloss.Color("220") // Bright amber
-	ColorCyan      = lipgloss.Color("51")  // Info banners
+	ColorMuted     = lipgloss.Color("242") // Dark gray (#666666)
+	ColorAccent    = lipgloss.Color("220") // Bright amber (#ffb955)
+	ColorCyan      = lipgloss.Color("39")  // Cyan (#3ac2ff)
 	ColorBlue      = lipgloss.Color("33")  // Update banners
 
 	// Text styles
@@ -29,6 +29,15 @@ var (
 
 	StyleMuted = lipgloss.NewStyle().
 			Foreground(ColorMuted)
+
+	// Warm muted for secondary text (source, time, descriptions)
+	StyleWarmMuted = lipgloss.NewStyle().
+			Foreground(ColorSecondary)
+
+	// Italic warm muted for summaries/descriptions
+	StyleSummary = lipgloss.NewStyle().
+			Italic(true).
+			Foreground(ColorSecondary)
 
 	StyleSuccess = lipgloss.NewStyle().
 			Foreground(ColorSuccess)
@@ -59,7 +68,7 @@ var (
 				Bold(true).
 				Foreground(ColorPrimary)
 
-	// Tag style
+	// Tag style — uppercase, no brackets
 	StyleTag = lipgloss.NewStyle().
 			Foreground(ColorPrimary)
 
@@ -72,6 +81,14 @@ var (
 	// Selected item background
 	StyleSelectedBg = lipgloss.NewStyle().
 			Background(lipgloss.Color("236"))
+
+	// Left border accent for unread/active items
+	StyleLeftBorder = lipgloss.NewStyle().
+			Foreground(ColorPrimary)
+
+	// Left border muted for read items
+	StyleLeftBorderMuted = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("238"))
 
 	// Dotted separator
 	StyleDotSeparator = lipgloss.NewStyle().
