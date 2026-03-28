@@ -2,6 +2,27 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.7.0] - 2026-03-28 — Custom Sources (RSS/Blog Subscriptions)
+
+### Added
+- **Custom source subscriptions**: Follow specific blogs and RSS feeds with AI-curated summaries. `termiflow source add <url>` runs RSS autodiscovery, resolves the feed URL, and creates a subscription that flows through the same LLM curation pipeline as topic-based search.
+- **RSS autodiscovery** (`internal/sources/discover.go`): Given any blog URL, detects RSS/Atom feeds via Content-Type, `<link rel="alternate">` tags, or common path probing (`/feed`, `/atom.xml`, `/rss`). Falls back to web scraping if no feed found. 15-second timeout budget.
+- **`termiflow source` CLI commands**: `source add <url>` (with `--context` and frequency flags), `source list`, `source remove <name-or-url>`.
+- **Scheduler source-type branching**: `RefreshSubscription()` now branches on `source_type`: "feed" fetches RSS via gofeed, "scrape" extracts content via the web scraper, "topic" uses the existing Tavily search flow. HTML content is stripped and truncated (2000 runes, UTF-8 safe) before LLM processing.
+- **Data model**: 4 new columns on `subscriptions` table (`source_url`, `source_type`, `display_name`, `context`) + unique index on `source_url`. Idempotent migration (handles existing databases).
+- **TUI source display**: Source subscriptions appear in the topics browser with `[feed]` or `[scrape]` tag. Display name from feed metadata instead of raw URL.
+- **Sync integration**: `serverSubscription` struct extended with source fields for managed-mode push/pull.
+- **10 autodiscovery tests** + 12 scheduler/model tests covering HTML stripping, dedup, scoring topic resolution, and source type detection.
+
+### Changed
+- **Header endpoint label**: Managed-mode TUI header now shows "termiflow cloud" instead of the raw API URL.
+
+### Fixed
+- **UTF-8 safe content truncation**: RSS content truncation uses rune slicing instead of byte slicing to prevent splitting multi-byte characters.
+- **Feed detection false positives**: `looksLikeFeed()` now requires `<feed>` or `<feed ` (with delimiter) instead of substring match, preventing HTML class names like `<div class="feed-widget">` from being detected as Atom feeds.
+- **Source remove safety**: `source remove` uses exact display_name or domain match instead of substring match, preventing accidental deletion of wrong subscriptions.
+- **Source deletion sync**: Removing a source subscription now pushes the deletion to the managed-mode server, preventing resurrection on next sync pull.
+
 ## [0.3.6.0] - 2026-03-28 — Server-Side Sync Infrastructure
 
 ### Added

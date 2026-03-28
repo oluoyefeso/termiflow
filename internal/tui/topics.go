@@ -364,13 +364,25 @@ func (m TopicsModel) ContentView() string {
 				nameStyle = StyleSelected
 			}
 
-			topic := PadRight(nameStyle.Render(info.Sub.Topic), topicWidth)
+			displayTopic := info.Sub.Topic
+			if info.Sub.DisplayName != "" {
+				displayTopic = info.Sub.DisplayName
+			}
+			topic := PadRight(nameStyle.Render(displayTopic), topicWidth)
+
+			// Show [feed] or [scrape] tag for source subscriptions
+			typeTag := "      "
+			if info.Sub.IsSourceSubscription() {
+				typeTag = StyleMuted.Render(fmt.Sprintf("[%s]", info.Sub.SourceType))
+				typeTag = PadRight(typeTag, 6)
+			}
+
 			freq := PadRight(StyleMuted.Render(info.Sub.Frequency), 8)
 			items := PadLeft(fmt.Sprintf("%d items", info.Total), 9)
 			unread := PadLeft(fmt.Sprintf("%d unread", info.Unread), 10)
 
-			fmt.Fprintf(&b, "  %s%s %s %s  %s\n",
-				cursor, topic, freq, items, unread)
+			fmt.Fprintf(&b, "  %s%s %s %s %s  %s\n",
+				cursor, topic, typeTag, freq, items, unread)
 		}
 	} else {
 		if len(m.available) == 0 {

@@ -2,9 +2,15 @@ package db
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/oluoyefeso/termiflow/pkg/models"
 )
+
+// isAlterTableDuplicate returns true if the error is from adding a column that already exists.
+func isAlterTableDuplicate(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate column name")
+}
 
 func RunMigrations() error {
 	migrations := []string{
@@ -61,6 +67,13 @@ func RunMigrations() error {
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_items_sub_url ON feed_items(subscription_id, source_url)`,
 
+		// Custom sources: add source fields to subscriptions
+		`ALTER TABLE subscriptions ADD COLUMN source_url TEXT`,
+		`ALTER TABLE subscriptions ADD COLUMN source_type TEXT DEFAULT 'topic'`,
+		`ALTER TABLE subscriptions ADD COLUMN display_name TEXT`,
+		`ALTER TABLE subscriptions ADD COLUMN context TEXT`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_source_url ON subscriptions(source_url) WHERE source_url IS NOT NULL`,
+
 		// Sync: offline read-state buffer for managed-mode users
 		`CREATE TABLE IF NOT EXISTS pending_read_sync (
 			source_url TEXT NOT NULL,
@@ -71,7 +84,12 @@ func RunMigrations() error {
 	}
 
 	for _, migration := range migrations {
-		if _, err := db.Exec(migration); err != nil {
+		_, err := db.Exec(migration)
+		if err != nil {
+			// ALTER TABLE fails if column already exists — that's fine (idempotent migration)
+			if isAlterTableDuplicate(err) {
+				continue
+			}
 			return err
 		}
 	}
