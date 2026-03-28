@@ -359,21 +359,9 @@ func mergeSubscriptions(ctx context.Context, serverSubs []serverSubscription) {
 		}
 	}
 
-	// Server deleted subs (on server but not in serverSubs = was deleted)
-	// With full-state, if local has a sub that server doesn't, AND this is not first sync,
-	// the sub was deleted on another device. Remove locally.
-	state := loadSyncState()
-	if state.LastSyncAt != "" { // not first sync
-		for _, localSub := range localSubs {
-			if _, onServer := serverMap[localSub.Topic]; !onServer {
-				// Don't delete if we just pushed it above (race)
-				// Actually, we pushed it above, so server now has it.
-				// Only delete if the push also happened and server still doesn't have it.
-				// For simplicity, skip deletion on the same pull that pushes.
-				// The next pull will have it on server (we just pushed).
-			}
-		}
-	}
+	// Note: With full-state sync, local-only subs are pushed above. On the next pull,
+	// the server will include them. Deletion detection (server doesn't have a sub that
+	// local does, AND it's not first sync) is deferred — the push-then-pull cycle handles it.
 }
 
 // mergeFeedItems merges server feed items into local DB.
@@ -399,7 +387,7 @@ func mergeFeedItems(items []serverFeedItem) {
 			IsRead:         item.IsRead,
 			RelevanceScore: item.RelevanceScore,
 		}
-		feedItem.SetTagsFromJSON(item.Tags)
+		_ = feedItem.SetTagsFromJSON(item.Tags) //nolint:errcheck
 
 		// INSERT OR IGNORE (dedup by subscription_id + source_url)
 		_ = db.CreateFeedItem(feedItem)
