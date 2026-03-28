@@ -2,6 +2,20 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.5.0] - 2026-03-28 — API Health Indicator
+
+### Added
+- **Health status indicator for managed-mode users**: Green/red/gray dot in the TUI header and CLI output (`termiflow status`, `termiflow feed`) shows whether `api.termiflow.com` is healthy, degraded, or unreachable.
+- **`CheckHealth()`**: 3-second timeout HTTP GET to `/health` endpoint with response body size limit (4KB). Returns `"ok"` or `"degraded"`.
+- **`CheckHealthCached()`**: Stale-while-revalidate cache in `~/.cache/termiflow/`. Always returns cached value immediately; refreshes in background goroutine when stale (>5 min). Only blocks on first-ever call (no cache file). Prevents CLI latency.
+- **TUI health tick**: Independent 5-minute timer re-checks API health in the background. Separate from the 30-minute auto-refresh timer.
+- **`--json` support**: `termiflow status --json` includes `api_status` field for programmatic health checks.
+- **12 unit tests** in `health_test.go` covering happy path, degraded, timeout, non-200, malformed JSON, empty status, and all cache states (fresh, stale, missing, corrupt).
+
+### Fixed
+- **TUI shares disk cache with CLI**: `checkAPIHealthCmd` uses `CheckHealthCached` so TUI and CLI see consistent health status from the same cache file.
+- **Cache key normalization**: Empty `baseURL` is resolved to the default before hashing, preventing separate cache entries for the same effective endpoint.
+
 ## [0.3.4.0] - 2026-03-28 — Rich ASCII Header + Status Card Fix
 
 ### Added
