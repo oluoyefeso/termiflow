@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
+	"github.com/oluoyefeso/termiflow/internal/providers"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/internal/ui"
@@ -58,7 +60,12 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 		sources, err = fetchSources(question, askSources)
 		if err != nil {
-			sp.Error(fmt.Sprintf("Search failed: %v", err))
+			var rle *providers.RateLimitError
+			if errors.As(err, &rle) {
+				sp.Error(rle.Error())
+			} else {
+				sp.Error(fmt.Sprintf("Search failed: %v", err))
+			}
 			// Continue without sources
 		} else {
 			sp.Stop()
@@ -101,7 +108,12 @@ func runAsk(cmd *cobra.Command, args []string) error {
 		Stream:      true,
 	})
 	if err != nil {
-		sp.Error(fmt.Sprintf("Failed to get response: %v", err))
+		var rle *providers.RateLimitError
+		if errors.As(err, &rle) {
+			sp.Error(rle.Error())
+		} else {
+			sp.Error(fmt.Sprintf("Failed to get response: %v", err))
+		}
 		return err
 	}
 
