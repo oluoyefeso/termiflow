@@ -19,33 +19,28 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/providers"
 )
 
-// CLIVersion is set at build time and sent as X-Termiflow-Version header.
-var CLIVersion = "dev"
-
 // ManagedProvider calls the termiflow backend proxy instead of Anthropic directly.
 // The backend validates the termiflow API key and forwards to Anthropic.
 //
 //	CLI ──► POST {baseURL}/v1/messages ──► termiflow backend ──► Anthropic
 //	        Authorization: Bearer {apiKey}      x-api-key: server-side key
 type ManagedProvider struct {
-	apiKey  string
-	baseURL string
-	client  *http.Client
+	mc *providers.ManagedClient
 }
 
 func NewManagedProvider(apiKey, baseURL string) *ManagedProvider {
-	if baseURL == "" {
-		baseURL = "https://api.termiflow.com"
-	}
 	return &ManagedProvider{
-		apiKey:  apiKey,
-		baseURL: baseURL,
-		client:  &http.Client{Timeout: 120 * time.Second},
+		mc: providers.NewManagedClient(apiKey, baseURL),
 	}
 }
 
+// Client returns the underlying ManagedClient for use by sync and other packages.
+func (p *ManagedProvider) Client() *providers.ManagedClient {
+	return p.mc
+}
+
 func (p *ManagedProvider) Name() string    { return "managed" }
-func (p *ManagedProvider) Available() bool { return p.apiKey != "" }
+func (p *ManagedProvider) Available() bool { return p.mc.APIKey != "" }
 
 func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (*CompletionResponse, error) {
 	var systemPrompt string
@@ -73,14 +68,11 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 	}
 
 	resp, err := providers.DoWithRetry(ctx, func() (*http.Response, error) { //nolint:bodyclose // DoWithRetry manages body lifecycle
-		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
+		httpReq, err := p.mc.NewRequest(ctx, "POST", "/v1/messages", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err
 		}
-		httpReq.Header.Set("Content-Type", "application/json")
-		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-		httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
-		return p.client.Do(httpReq)
+		return p.mc.Do(httpReq)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("managed: %w", err)
@@ -115,12 +107,8 @@ func (p *ManagedProvider) Complete(ctx context.Context, req CompletionRequest) (
 	}, nil
 }
 
-// streamClient is a separate HTTP client with no timeout for SSE connections,
-// which stay open for the full response generation.
-var streamClient = &http.Client{}
-
 // Stream sends a streaming request to the managed API and returns SSE chunks in real-time.
-// Uses a separate HTTP client with no timeout (SSE connections stay open for the full generation).
+// Uses ManagedClient.DoStream (no timeout) because SSE connections stay open for the full generation.
 func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-chan StreamChunk, error) {
 	var systemPrompt string
 	var messages []anthropicMessage
@@ -148,16 +136,13 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 
 	var resp *http.Response
 	for attempt := 0; ; attempt++ {
-		httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
+		httpReq, err := p.mc.NewRequest(ctx, "POST", "/v1/messages", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, err
 		}
-		httpReq.Header.Set("Content-Type", "application/json")
-		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-		httpReq.Header.Set("X-Termiflow-Version", CLIVersion)
 		httpReq.Header.Set("Accept", "text/event-stream")
 
-		resp, err = streamClient.Do(httpReq) //nolint:bodyclose // closed in goroutine, 429 path, or 503 retry path
+		resp, err = p.mc.DoStream(httpReq) //nolint:bodyclose // closed in goroutine, 429 path, or 503 retry path
 		if err != nil {
 			return nil, fmt.Errorf("managed: stream request failed: %w", err)
 		}
