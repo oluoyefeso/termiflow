@@ -8,11 +8,12 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
 )
 
-// Header lines: top bar + content + bottom bar = 3 lines
-const headerLines = 3
+// headerLines: top bar + 3 content lines + bottom bar = 5 lines (+ 1 if breadcrumb present)
+const headerLines = 6 // reserve max (with breadcrumb)
 
 // Footer lines: separator + hints = 2 lines
 const footerLines = 2
@@ -20,22 +21,73 @@ const footerLines = 2
 // bannerHeight returns the number of lines a single banner card occupies.
 const bannerCardHeight = 3 // top border + content + bottom border + gap handled by caller
 
-// RenderHeader renders the persistent header bar with breadcrumb, unread badge,
-// and last refresh indicator.
-func RenderHeader(width int, breadcrumb []string, unreadCount int, lastRefresh time.Time) string {
-	// Build breadcrumb trail
-	crumbs := "TERMIFLOW"
-	for _, seg := range breadcrumb {
-		crumbs += " › " + seg
+// ASCII art logo (box-drawing style, 3 lines)
+var asciiLogo = []string{
+	" ╔╦╗╔═╗╦═╗╔╦╗╦╔═╗╦  ╔═╗╦ ╦",
+	"  ║ ║╣ ╠╦╝║║║║╠╣ ║  ║ ║║║║",
+	"  ║ ╚═╝╩╚═╩ ╩╩╚  ╩═╝╚═╝╚╩╝",
+}
+
+// HeaderInfo holds pre-computed values for the header so we don't call config on every render.
+type HeaderInfo struct {
+	Mode     string // "Managed" or "Self-hosted"
+	Endpoint string // API URL or provider name
+	Version  string
+}
+
+// NewHeaderInfo reads config once and returns header display values.
+func NewHeaderInfo(version string) HeaderInfo {
+	h := HeaderInfo{Version: version}
+	if config.IsManagedMode() {
+		h.Mode = "Managed"
+		cfg := config.Get()
+		h.Endpoint = cfg.Providers.Managed.BaseURL
+		if h.Endpoint == "" {
+			h.Endpoint = "api.termiflow.com"
+		}
+	} else {
+		h.Mode = "Self-hosted"
+		cfg := config.Get()
+		h.Endpoint = cfg.General.DefaultProvider
+	}
+	return h
+}
+
+// RenderHeader renders the persistent header with ASCII logo, stats, and breadcrumb.
+func RenderHeader(width int, breadcrumb []string, unreadCount, subCount int, lastRefresh time.Time, info HeaderInfo) string {
+	top := StyleMuted.Render(Bar("═", width))
+
+	// Logo width (visual width of widest line)
+	logoWidth := 0
+	for _, l := range asciiLogo {
+		if w := lipgloss.Width(l); w > logoWidth {
+			logoWidth = w
+		}
 	}
 
-	// Right side: unread badge + refresh indicator
-	var rightParts []string
+	// Narrow terminal fallback: skip logo, use compact text header
+	if width < logoWidth+20 {
+		// Compact: just "TERMIFLOW v0.3.3.0" centered
+		title := StyleAccent.Render("TERMIFLOW")
+		if info.Version != "" {
+			title += " " + StyleMuted.Render("v"+info.Version)
+		}
+		bot := StyleMuted.Render(Bar("═", width))
+		return fmt.Sprintf("%s\n %s\n%s", top, title, bot)
+	}
 
+	// Build right-side stats (3 lines to match logo height)
+	var rightLines [3]string
+
+	// Line 1: mode + endpoint
+	rightLines[0] = StyleMuted.Render(info.Mode) + StyleMuted.Render(" · ") + StyleAccent.Render(info.Endpoint)
+
+	// Line 2: subs + unread + refresh
+	var statParts []string
+	statParts = append(statParts, StyleMuted.Render(fmt.Sprintf("%d subs", subCount)))
 	if unreadCount > 0 {
-		rightParts = append(rightParts, StyleSuccess.Render("●")+" "+StyleUnreadBadge.Render(fmt.Sprintf("%d unread", unreadCount)))
+		statParts = append(statParts, StyleSuccess.Render("●")+" "+StyleUnreadBadge.Render(fmt.Sprintf("%d unread", unreadCount)))
 	}
-
 	if !lastRefresh.IsZero() {
 		ago := time.Since(lastRefresh)
 		label := "just now"
@@ -44,34 +96,47 @@ func RenderHeader(width int, breadcrumb []string, unreadCount int, lastRefresh t
 		} else if ago > time.Minute {
 			label = fmt.Sprintf("%dm ago", int(ago.Minutes()))
 		}
-		// Color the dot based on freshness
-		dot := StyleSuccess.Render("⦻") // green = fresh (< 1h)
+		dot := StyleSuccess.Render("⦻")
 		if ago > time.Hour {
-			dot = StyleWarning.Render("⦻") // amber = stale (> 1h)
+			dot = StyleWarning.Render("⦻")
 		}
-		rightParts = append(rightParts, dot+" "+StyleMuted.Render(label))
+		statParts = append(statParts, dot+" "+StyleMuted.Render(label))
+	}
+	rightLines[1] = strings.Join(statParts, "  ")
+
+	// Line 3: version
+	if info.Version != "" {
+		rightLines[2] = StyleMuted.Render("v" + info.Version)
 	}
 
-	rightStr := strings.Join(rightParts, "  ")
+	// Compose the 3 logo + stats lines
+	var contentLines []string
+	gap := 4 // space between logo and stats
+	for i := 0; i < 3; i++ {
+		logo := StyleAccent.Render(asciiLogo[i])
+		rightStr := rightLines[i]
+		rightWidth := lipgloss.Width(rightStr)
 
-	// Calculate padding
-	crumbRendered := StyleAccent.Render(crumbs)
-	crumbWidth := lipgloss.Width(crumbRendered)
-	rightWidth := lipgloss.Width(rightStr)
-	padding := width - crumbWidth - rightWidth - 2 // 2 for leading indent
-	if padding < 1 {
-		padding = 1
+		padding := width - logoWidth - rightWidth - gap - 1 // 1 for leading space
+		if padding < 1 {
+			padding = 1
+		}
+		line := " " + logo + strings.Repeat(" ", padding) + rightStr
+		contentLines = append(contentLines, line)
 	}
 
-	top := StyleMuted.Render(Bar("═", width))
-	content := fmt.Sprintf(" %s%s%s",
-		crumbRendered,
-		strings.Repeat(" ", padding),
-		rightStr,
-	)
+	// Breadcrumb line (only if there's content)
+	var lines []string
+	lines = append(lines, top)
+	lines = append(lines, contentLines...)
+	if len(breadcrumb) > 0 {
+		crumbs := strings.Join(breadcrumb, " › ")
+		lines = append(lines, " "+StyleMuted.Render(crumbs))
+	}
 	bot := StyleMuted.Render(Bar("═", width))
+	lines = append(lines, bot)
 
-	return fmt.Sprintf("%s\n%s\n%s", top, content, bot)
+	return strings.Join(lines, "\n")
 }
 
 // RenderBanner renders a notification banner as a bordered card.
@@ -172,6 +237,15 @@ func RenderCard(title string, contentLines []string, width int) string {
 	}
 	for _, line := range contentLines {
 		lineWidth := lipgloss.Width(line)
+		if lineWidth > contentArea && contentArea > 3 {
+			// Truncate with ellipsis to fit within card borders
+			runes := []rune(line)
+			for lipgloss.Width(string(runes)) > contentArea-3 && len(runes) > 0 {
+				runes = runes[:len(runes)-1]
+			}
+			line = string(runes) + "..."
+			lineWidth = lipgloss.Width(line)
+		}
 		pad := contentArea - lineWidth
 		if pad < 0 {
 			pad = 0
