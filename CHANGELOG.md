@@ -2,6 +2,20 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.11.0] - 2026-03-28 — Glamour Markdown Rendering
+
+### Added
+- **Glamour markdown rendering for ask command**: LLM responses in the `ask` command now render with proper terminal formatting (styled headings, bold, syntax-highlighted code blocks) using charmbracelet/glamour. Raw text streams during generation, then the polished version appears after completion.
+- **CLI separator approach**: After streaming completes, a divider line separates the raw stream from the glamour-rendered version. TTY-aware: piped output stays raw.
+- **TUI glamour caching**: Rendered markdown is cached on phase transition and invalidated on window resize for smooth scrolling.
+- **RenderMarkdown utility**: New shared `internal/ui/markdown.go` with auto dark/light terminal detection and error fallback to raw text.
+- **Unit tests for RenderMarkdown**: 5 tests covering headings, empty input, zero width, code blocks, and inline formatting.
+
+### Fixed
+- **TUI scroll bounds**: Scroll max now uses rendered line count (not raw) when glamour output is active, fixing inability to scroll to bottom.
+- **TUI trailing whitespace**: Glamour trailing newlines are trimmed before viewport display.
+- **go.mod direct dependency**: glamour correctly listed as direct (not indirect) dependency.
+
 ## [0.3.10.1] - 2026-03-28 — Rate Limit Error UX
 
 ### Fixed

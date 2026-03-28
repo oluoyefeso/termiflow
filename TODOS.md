@@ -2,17 +2,26 @@
 
 ## Post-MVP (UX improvements)
 
-### SSE streaming pass-through in backend proxy
-**What:** Backend proxy forwards Anthropic SSE chunks verbatim to the CLI instead of buffering.
-**Why:** The `ask` command currently outputs all text at once in managed mode. Token-by-token streaming significantly improves perceived responsiveness.
-**Pros:** Better UX. CLI already handles streaming (see ask.go).
-**Cons:** Requires `http.Flusher` assertion in `proxy_llm.go`. Need to test SSE chunking boundary cases. Non-trivial Go HTTP pattern.
-**Context:** `internal/api/proxy_llm.go`. Use `w.(http.Flusher)` — assert and call `flusher.Flush()` after each SSE chunk. `ManagedProvider.Stream()` currently calls `Complete()` internally (buffered) — update it to parse SSE events once backend supports it. Add explicit integration test with a slow mock Anthropic server.
-**Depends on:** Nothing blocking — independent of rate limiting.
+### User-selectable terminal theme system
+**What:** Let users pick a color theme in settings (`termiflow config set theme <name>`) that controls the entire app's palette: TUI chrome, glamour markdown rendering, lipgloss styles.
+**Why:** Currently the amber-on-dark palette is hardcoded. Users with light terminals or different preferences can't customize.
+**Pros:** Ship with 2-3 built-in themes (dark-amber default, light, dracula). Glamour renderer already accepts style config.
+**Cons:** Need to thread theme config through all lipgloss style definitions. Medium effort.
+**Context:** `internal/ui/colors.go` (CLI palette), `internal/tui/styles.go` (TUI palette), `internal/ui/markdown.go` (glamour renderer). Glamour supports custom `ansi.StyleConfig`.
+**Depends on:** Glamour integration (shipped in v0.3.11.0).
+**Priority:** P3
 
 ---
 
 ## Done
+
+### Glamour markdown rendering for ask command
+**Shipped in:** v0.3.11.0
+**What:** LLM responses in `ask` command now render with glamour terminal markdown (headings, bold, syntax-highlighted code blocks). CLI uses separator approach (raw stream + divider + rendered). TUI swaps to glamour on completion with cached rendering. TTY-aware, piped output stays raw.
+
+### SSE streaming pass-through in backend proxy
+**Shipped in:** v0.3.9.0 (backend) + v0.3.10.0 (CLI integration)
+**What:** Backend proxy forwards Anthropic SSE chunks verbatim via http.Flusher. ManagedProvider.Stream() parses SSE events in real-time. 8 streaming tests cover happy path, retry, large events, malformed SSE, connection drops, rate limits.
 
 ### Parallelize within-article LLM calls + concurrent subscription refresh
 **Shipped in:** v0.3.9.0

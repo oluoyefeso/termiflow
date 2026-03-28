@@ -18,6 +18,7 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 // askPhase tracks the current state of the ask flow.
@@ -32,18 +33,19 @@ const (
 
 // AskModel is the inline Q&A screen.
 type AskModel struct {
-	input     textinput.Model
-	phase     askPhase
-	question  string
-	answer    strings.Builder
-	sources   []AskSource
-	scrollY   int
-	width     int
-	height    int
-	err       error
-	cancel    context.CancelFunc
-	saved     string // path if saved
-	saveFlash bool   // true = green, false = muted (after 3s)
+	input          textinput.Model
+	phase          askPhase
+	question       string
+	answer         strings.Builder
+	sources        []AskSource
+	scrollY        int
+	width          int
+	height         int
+	err            error
+	cancel         context.CancelFunc
+	saved          string
+	saveFlash      bool
+	renderedAnswer string
 }
 
 func NewAskModel() AskModel {
@@ -185,6 +187,16 @@ func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 			m.err = msg.Err
 		}
 		m.phase = askPhaseDone
+		if m.answer.Len() > 0 {
+			w := m.width - 4
+			if w > 72 {
+				w = 72
+			}
+			if w <= 0 {
+				w = 65
+			}
+			m.renderedAnswer = ui.RenderMarkdown(m.answer.String(), w)
+		}
 		return m, nil
 
 	case AskSavedMsg:
@@ -220,6 +232,16 @@ func (m AskModel) Update(msg tea.Msg) (AskModel, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
+		if msg.Width != m.width && m.phase == askPhaseDone && m.answer.Len() > 0 {
+			w := msg.Width - 4
+			if w > 72 {
+				w = 72
+			}
+			if w <= 0 {
+				w = 65
+			}
+			m.renderedAnswer = ui.RenderMarkdown(m.answer.String(), w)
+		}
 		m.width = msg.Width
 		m.height = msg.Height
 	}
@@ -242,6 +264,7 @@ func (m *AskModel) updateInput(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 		m.err = nil
 		m.saved = ""
 		m.saveFlash = false
+		m.renderedAnswer = ""
 		m.input.Blur()
 		if m.cancel != nil {
 			m.cancel()
@@ -274,6 +297,7 @@ func (m *AskModel) updateDone(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 		m.err = nil
 		m.saved = ""
 		m.saveFlash = false
+		m.renderedAnswer = ""
 		return *m, textinput.Blink
 	case key.Matches(msg, AskKeys.Save):
 		if m.saved == "" && m.answer.Len() > 0 {
@@ -284,7 +308,11 @@ func (m *AskModel) updateDone(msg tea.KeyMsg) (AskModel, tea.Cmd) {
 			m.scrollY--
 		}
 	case key.Matches(msg, AskKeys.Down):
-		maxScroll := strings.Count(m.answer.String(), "\n") + len(m.sources) + 5
+		answerText := m.answer.String()
+		if m.renderedAnswer != "" {
+			answerText = m.renderedAnswer
+		}
+		maxScroll := strings.Count(answerText, "\n") + len(m.sources) + 5
 		if m.scrollY < maxScroll {
 			m.scrollY++
 		}
@@ -364,8 +392,13 @@ func (m AskModel) ContentView(spinnerFrame int) string {
 		// Answer
 		answerText := m.answer.String()
 		if answerText != "" {
-			wrapped := wrapText(answerText, contentWidth)
-			for _, line := range strings.Split(wrapped, "\n") {
+			var formatted string
+			if m.phase == askPhaseDone && m.renderedAnswer != "" {
+				formatted = strings.TrimRight(m.renderedAnswer, "\n")
+			} else {
+				formatted = wrapText(answerText, contentWidth)
+			}
+			for _, line := range strings.Split(formatted, "\n") {
 				lines = append(lines, "  "+line)
 			}
 		}
