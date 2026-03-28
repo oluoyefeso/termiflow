@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -30,6 +32,9 @@ var (
 	// cachedBanners holds notification banners loaded during PersistentPreRunE,
 	// so the TUI can display them instead of printing to stdout.
 	cachedBanners []tui.BannerMsg
+
+	// bgFetchWg ensures the background notification fetch completes before exit.
+	bgFetchWg sync.WaitGroup
 )
 
 var rootCmd = &cobra.Command{
@@ -91,11 +96,22 @@ No browser switching, no context loss, no noise. Just signal.`,
 				config.IsManagedMode(),
 			)
 			nm.LoadCache()
-			banners := nm.GetBanners()
 
 			// If this is the root command in TUI mode (interactive TTY, not JSON),
 			// cache banners for the TUI. Otherwise, print them to stdout as before.
 			isTUI := cmd.Name() == "termiflow" && !jsonOutput && term.IsTerminal(int(os.Stdin.Fd()))
+
+			// For TUI mode, fetch synchronously if cache is stale so banners
+			// are available immediately. For CLI mode, use stale-while-revalidate.
+			// Use a short timeout to avoid blocking TUI startup on slow networks.
+			if isTUI && nm.IsStale() {
+				fetchCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				nm.Fetch(fetchCtx)
+				cancel()
+			}
+
+			banners := nm.GetBanners()
+
 			if isTUI {
 				cachedBanners = nil
 				for _, b := range banners {
@@ -113,12 +129,21 @@ No browser switching, no context loss, no noise. Just signal.`,
 			if len(banners) > 0 {
 				nm.MarkDisplayed(banners)
 			}
-			go nm.FetchAsync(context.Background())
+			// Background fetch to keep cache fresh for next invocation (CLI mode only;
+			// TUI already fetched synchronously above when cache was stale).
+			if !isTUI {
+				bgFetchWg.Add(1)
+				go func() {
+					defer bgFetchWg.Done()
+					nm.FetchAsync(context.Background())
+				}()
+			}
 		}
 
 		return nil
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		bgFetchWg.Wait()
 		db.Close()
 	},
 }
