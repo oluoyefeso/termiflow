@@ -16,7 +16,7 @@ func TestWriteJSON(t *testing.T) {
 
 	data := map[string]string{"key": "value"}
 	err := WriteJSON(data, "1.0.0")
-	w.Close()
+	w.Close() //nolint:errcheck
 	os.Stdout = old
 
 	if err != nil {
@@ -49,7 +49,7 @@ func TestWriteJSONNilData(t *testing.T) {
 	os.Stdout = w
 
 	err := WriteJSON(nil, "dev")
-	w.Close()
+	w.Close() //nolint:errcheck
 	os.Stdout = old
 
 	if err != nil {
@@ -77,7 +77,7 @@ func TestWriteJSONError(t *testing.T) {
 
 	data := map[string]string{"partial": "content"}
 	err := WriteJSONError(data, "stream failed", "1.0.0")
-	w.Close()
+	w.Close() //nolint:errcheck
 	os.Stdout = old
 
 	if err != nil {
@@ -108,7 +108,7 @@ func TestWriteJSONNoANSICodes(t *testing.T) {
 		"summary": "A plain text summary with no styling",
 	}
 	err := WriteJSON(data, "1.0.0")
-	w.Close()
+	w.Close() //nolint:errcheck
 	os.Stdout = old
 
 	if err != nil {

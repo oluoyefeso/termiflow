@@ -21,7 +21,7 @@ func setupTestDB(t *testing.T) func() {
 	}
 
 	return func() {
-		db.Close()
+		db.Close() //nolint:errcheck
 	}
 }
 
