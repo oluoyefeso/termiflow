@@ -233,6 +233,18 @@ func Banner(bannerType string, message string) string {
 	return fmt.Sprintf(" %s %s\n", style.Render(icon), style.Render(message))
 }
 
+// HealthDot returns a colored dot for the given API health status.
+func HealthDot(status string) string {
+	switch status {
+	case "ok":
+		return SuccessStyle.Render("●")
+	case "degraded":
+		return ErrorStyle.Render("●")
+	default:
+		return MutedStyle.Render("●")
+	}
+}
+
 func NoColor(enable bool) {
 	if enable {
 		lipgloss.SetColorProfile(termenv.Ascii)
