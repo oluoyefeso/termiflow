@@ -144,6 +144,23 @@ func GetFeedItemsBySubscription(subID int64, limit int, unreadOnly bool) ([]*mod
 	})
 }
 
+// ItemBySubscriptionAndURL finds a feed item by its subscription ID and source URL.
+// Returns nil if not found.
+func ItemBySubscriptionAndURL(subID int64, sourceURL string) (*models.FeedItem, error) {
+	if db == nil {
+		return nil, nil
+	}
+	row := db.QueryRow(
+		`SELECT id, subscription_id, title, source_url, is_read FROM feed_items WHERE subscription_id = ? AND source_url = ?`,
+		subID, sourceURL,
+	)
+	var item models.FeedItem
+	if err := row.Scan(&item.ID, &item.SubscriptionID, &item.Title, &item.SourceURL, &item.IsRead); err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
 func MarkItemRead(id int64) error {
 	_, err := db.Exec(`UPDATE feed_items SET is_read = 1 WHERE id = ?`, id)
 	return err
