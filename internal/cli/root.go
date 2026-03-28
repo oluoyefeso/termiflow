@@ -191,6 +191,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(upgradeCmd)
 	rootCmd.AddCommand(changelogCmd)
+	rootCmd.AddCommand(sourceCmd)
 }
 
 func getProvider() string {
