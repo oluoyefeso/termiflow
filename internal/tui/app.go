@@ -9,6 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
 )
 
@@ -20,6 +22,11 @@ type programHolder struct {
 
 // spinnerTickMsg drives the loading animation.
 type spinnerTickMsg struct{}
+
+// healthTickMsg fires every 5 minutes to re-check API health (managed mode only).
+type healthTickMsg struct{}
+
+const healthTickInterval = 5 * time.Minute
 
 // AppModel is the root model that routes between screens.
 type AppModel struct {
@@ -53,7 +60,28 @@ func NewAppModel(banners []BannerMsg, version string) AppModel {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return tea.Batch(m.dashboard.Init(), spinnerTick())
+	cmds := []tea.Cmd{m.dashboard.Init(), spinnerTick()}
+	if config.IsManagedMode() {
+		cmds = append(cmds, checkAPIHealthCmd(), healthTick())
+	}
+	return tea.Batch(cmds...)
+}
+
+// checkAPIHealthCmd performs an async health check against the managed API.
+// Uses CheckHealthCached so TUI and CLI share the same disk cache.
+func checkAPIHealthCmd() tea.Cmd {
+	return func() tea.Msg {
+		cfg := config.Get()
+		status := llm.CheckHealthCached(cfg.Providers.Managed.BaseURL)
+		return HealthCheckMsg{Status: status}
+	}
+}
+
+// healthTick sends a tick message every 5 minutes for health re-checks.
+func healthTick() tea.Cmd {
+	return tea.Tick(healthTickInterval, func(t time.Time) tea.Msg {
+		return healthTickMsg{}
+	})
 }
 
 func spinnerTick() tea.Cmd {
@@ -209,6 +237,16 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.dashboard, cmd = m.dashboard.Update(msg)
 		return m, cmd
+
+	case HealthCheckMsg:
+		m.headerInfo.APIHealth = msg.Status
+		return m, nil
+
+	case healthTickMsg:
+		if config.IsManagedMode() {
+			return m, tea.Batch(checkAPIHealthCmd(), healthTick())
+		}
+		return m, nil
 	}
 
 	// Route to active screen

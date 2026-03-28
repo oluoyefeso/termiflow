@@ -16,6 +16,7 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/providers"
+	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/scheduler"
 	"github.com/oluoyefeso/termiflow/internal/ui"
 	"github.com/oluoyefeso/termiflow/pkg/models"
@@ -173,6 +174,10 @@ func displayFeedItems(cmd *cobra.Command, cfg *config.Config) error {
 	}
 
 	fmt.Println(ui.HeaderWithDate("termiflow feed"))
+	if config.IsManagedMode() {
+		healthStatus := llm.CheckHealthCached(cfg.Providers.Managed.BaseURL)
+		fmt.Print(ui.Info("API", ui.HealthDot(healthStatus)+" "+healthStatus))
+	}
 
 	if len(items) == 0 {
 		fmt.Println()

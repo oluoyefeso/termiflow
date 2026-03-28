@@ -30,9 +30,10 @@ var asciiLogo = []string{
 
 // HeaderInfo holds pre-computed values for the header so we don't call config on every render.
 type HeaderInfo struct {
-	Mode     string // "Managed" or "Self-hosted"
-	Endpoint string // API URL or provider name
-	Version  string
+	Mode      string // "Managed" or "Self-hosted"
+	Endpoint  string // API URL or provider name
+	Version   string
+	APIHealth string // "ok", "degraded", "unknown", or "" (not yet checked)
 }
 
 // NewHeaderInfo reads config once and returns header display values.
@@ -79,8 +80,11 @@ func RenderHeader(width int, breadcrumb []string, unreadCount, subCount int, las
 	// Build right-side stats (3 lines to match logo height)
 	var rightLines [3]string
 
-	// Line 1: mode + endpoint
+	// Line 1: mode + endpoint + health dot (managed only)
 	rightLines[0] = StyleMuted.Render(info.Mode) + StyleMuted.Render(" · ") + StyleAccent.Render(info.Endpoint)
+	if info.Mode == "Managed" {
+		rightLines[0] += " " + HealthDot(info.APIHealth)
+	}
 
 	// Line 2: subs + unread + refresh
 	var statParts []string

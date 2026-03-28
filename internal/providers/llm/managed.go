@@ -6,11 +6,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/providers"
 )
 
@@ -235,4 +240,101 @@ func (p *ManagedProvider) Stream(ctx context.Context, req CompletionRequest) (<-
 	}()
 
 	return chunks, nil
+}
+
+// healthClient is a short-timeout HTTP client for health checks only.
+var healthClient = &http.Client{Timeout: 3 * time.Second}
+
+// CheckHealth calls the /health endpoint and returns the status string ("ok" or "degraded").
+func CheckHealth(baseURL string) (string, error) {
+	if baseURL == "" {
+		baseURL = "https://api.termiflow.com"
+	}
+	resp, err := healthClient.Get(baseURL + "/health")
+	if err != nil {
+		return "", fmt.Errorf("health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusServiceUnavailable {
+		return "", fmt.Errorf("health check returned %s", resp.Status)
+	}
+
+	var result struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&result); err != nil {
+		return "", fmt.Errorf("health check: invalid JSON: %w", err)
+	}
+	if result.Status == "" {
+		return "", fmt.Errorf("health check: empty status")
+	}
+	return result.Status, nil
+}
+
+// healthCache is the on-disk cache format.
+type healthCache struct {
+	Status string `json:"status"`
+	TS     int64  `json:"ts"`
+}
+
+const healthCacheTTL = 5 * time.Minute
+
+// healthRefreshMu prevents multiple concurrent background refreshes.
+var healthRefreshMu sync.Mutex
+
+// CheckHealthCached returns the cached health status, refreshing in the background if stale.
+// On first-ever call (no cache), blocks for up to 3s. Never returns an error to callers.
+func CheckHealthCached(baseURL string) string {
+	if baseURL == "" {
+		baseURL = "https://api.termiflow.com"
+	}
+	cachePath := healthCachePath(baseURL)
+
+	// Try to read cache
+	data, err := os.ReadFile(cachePath)
+	if err == nil {
+		var cached healthCache
+		if json.Unmarshal(data, &cached) == nil && cached.Status != "" {
+			age := time.Since(time.Unix(cached.TS, 0))
+			if age < healthCacheTTL {
+				return cached.Status // fresh cache
+			}
+			// Stale cache: return it immediately, refresh in background
+			go refreshHealthCache(baseURL, cachePath)
+			return cached.Status
+		}
+	}
+
+	// No valid cache: block for first call
+	status, err := CheckHealth(baseURL)
+	if err != nil {
+		return "unknown"
+	}
+	writeHealthCache(cachePath, status)
+	return status
+}
+
+func healthCachePath(baseURL string) string {
+	hash := crc32.ChecksumIEEE([]byte(baseURL))
+	return filepath.Join(config.GetCacheDir(), fmt.Sprintf("health-%08x.json", hash))
+}
+
+func refreshHealthCache(baseURL, cachePath string) {
+	if !healthRefreshMu.TryLock() {
+		return // another refresh is already running
+	}
+	defer healthRefreshMu.Unlock()
+
+	status, err := CheckHealth(baseURL)
+	if err != nil {
+		return // keep stale cache
+	}
+	writeHealthCache(cachePath, status)
+}
+
+func writeHealthCache(cachePath, status string) {
+	data, _ := json.Marshal(healthCache{Status: status, TS: time.Now().Unix()})
+	_ = os.MkdirAll(filepath.Dir(cachePath), 0o755)
+	_ = os.WriteFile(cachePath, data, 0o644)
 }
