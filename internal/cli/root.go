@@ -48,7 +48,7 @@ No browser switching, no context loss, no noise. Just signal.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Launch TUI when running interactively (TTY, not JSON, not quiet)
 		if !jsonOutput && !quiet && term.IsTerminal(int(os.Stdin.Fd())) {
-			return tui.Run(cachedBanners)
+			return tui.Run(cachedBanners, version)
 		}
 		return runDashboard(cmd)
 	},
