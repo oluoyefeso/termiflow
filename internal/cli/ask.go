@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oluoyefeso/termiflow/internal/config"
+	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/providers/llm"
 	"github.com/oluoyefeso/termiflow/internal/providers/search"
 	"github.com/oluoyefeso/termiflow/internal/ui"
@@ -82,11 +83,17 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	sp := ui.NewSpinner("Thinking...")
 	sp.Start()
 
+	// Build system prompt with user context (subscriptions, unread counts, mode)
+	systemPrompt := "You are a helpful assistant that provides accurate, well-researched answers. Use the provided sources to inform your response. Be concise but thorough."
+	if userCtx := db.BuildUserContext(); userCtx != "" {
+		systemPrompt += "\n\n" + userCtx
+	}
+
 	// Stream the response
 	ctx := context.Background()
 	chunks, err := llmProvider.Stream(ctx, llm.CompletionRequest{
 		Messages: []llm.Message{
-			{Role: "system", Content: "You are a helpful assistant that provides accurate, well-researched answers. Use the provided sources to inform your response. Be concise but thorough."},
+			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: prompt},
 		},
 		MaxTokens:   2048,
