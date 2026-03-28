@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/oluoyefeso/termiflow/internal/config"
 	"github.com/oluoyefeso/termiflow/internal/db"
@@ -119,19 +120,17 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 	sp.Stop()
 
-	// Stream output, capturing content for --save or --json
-	var savedContent strings.Builder
+	// Stream output, always capturing content for glamour re-render / --save / --json
+	var rawContent strings.Builder
 	var streamErr error
 	for chunk := range chunks {
 		if chunk.Error != nil {
 			streamErr = chunk.Error
 			break
 		}
+		rawContent.WriteString(chunk.Content)
 		if !jsonOutput {
 			fmt.Print(chunk.Content)
-		}
-		if askSave || jsonOutput {
-			savedContent.WriteString(chunk.Content)
 		}
 	}
 
@@ -139,7 +138,7 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	if jsonOutput {
 		askOut := AskOutputJSON{
 			Question: question,
-			Answer:   savedContent.String(),
+			Answer:   rawContent.String(),
 			Sources:  buildSourcesJSON(sources),
 		}
 		if streamErr != nil {
@@ -153,7 +152,15 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Println()
+
+	// Re-render streamed markdown with glamour (TTY only)
+	if rawContent.Len() > 0 && term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Println(ui.SmallDivider())
+		fmt.Println()
+		fmt.Print(ui.RenderMarkdown(rawContent.String(), 72))
+	} else {
+		fmt.Println()
+	}
 
 	// Print sources
 	if len(sources) > 0 {
@@ -166,7 +173,7 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 	// Save to file if --save flag is set
 	if askSave {
-		path, err := saveAskResult(question, savedContent.String(), sources)
+		path, err := saveAskResult(question, rawContent.String(), sources)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n %s Failed to save: %v\n", ui.ErrorStyle.Render("✗"), err)
 		} else {
