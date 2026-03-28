@@ -156,7 +156,7 @@ func RenderCard(title string, contentLines []string, width int) string {
 	// Top border with title (must match bottom border width: innerWidth + 4)
 	topLeft := "┌─ " + title + " "
 	topLeftLen := 3 + utf8.RuneCountInString(title) + 1 // "┌─ " + title + " "
-	remaining := (innerWidth + 4) - topLeftLen - 1       // -1 for closing "┐"
+	remaining := (innerWidth + 4) - topLeftLen - 1      // -1 for closing "┐"
 	if remaining < 0 {
 		remaining = 0
 	}
