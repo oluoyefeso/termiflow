@@ -12,6 +12,12 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
 )
 
+// programHolder allows the model (which is copied by tea.NewProgram) to
+// access the *tea.Program for sending messages from background goroutines.
+type programHolder struct {
+	p *tea.Program
+}
+
 // spinnerTickMsg drives the loading animation.
 type spinnerTickMsg struct{}
 
@@ -31,6 +37,7 @@ type AppModel struct {
 	totalUnread  int
 	lastRefresh  time.Time
 	spinnerFrame int
+	programRef   *programHolder // shared ref, set in Run() before p.Run()
 }
 
 // NewAppModel creates the root app model with optional notification banners.
@@ -116,39 +123,55 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case SwitchScreenMsg:
+		contentH := ContentHeight(m.height, len(m.banners))
 		switch msg.Screen {
 		case ScreenDashboard:
 			m.activeScreen = ScreenDashboard
+			m.dashboard.width = m.width
+			m.dashboard.height = contentH
 			return m, tea.Batch(loadSubscriptions, m.ensureSpinnerRunning())
 		case ScreenFeed:
 			if msg.Subscription != nil {
 				m.feed = NewFeedModel(msg.Subscription)
 				m.activeScreen = ScreenFeed
-				return m, m.feed.Init()
+				m.feed.width = m.width
+				m.feed.height = contentH
+				return m, tea.Batch(m.feed.Init(), m.ensureSpinnerRunning())
 			}
 			m.activeScreen = ScreenFeed
+			m.feed.width = m.width
+			m.feed.height = contentH
 		case ScreenAsk:
 			if m.ask.cancel != nil {
 				m.ask.cancel()
 			}
 			m.ask = NewAskModel()
 			m.activeScreen = ScreenAsk
-			return m, m.ask.Init()
+			m.ask.width = m.width
+			m.ask.height = contentH
+			return m, tea.Batch(m.ask.Init(), m.ensureSpinnerRunning())
 		case ScreenTopics:
 			m.topics = NewTopicsModel()
 			m.activeScreen = ScreenTopics
-			return m, m.topics.Init()
+			m.topics.width = m.width
+			m.topics.height = contentH
+			return m, tea.Batch(m.topics.Init(), m.ensureSpinnerRunning())
 		case ScreenStatus:
 			m.status = NewStatusModel()
 			m.activeScreen = ScreenStatus
-			return m, m.status.Init()
+			m.status.width = m.width
+			m.status.height = contentH
+			return m, tea.Batch(m.status.Init(), m.ensureSpinnerRunning())
 		}
 		return m, nil
 
 	case OpenDetailMsg:
+		contentH := ContentHeight(m.height, len(m.banners))
 		m.detail = NewDetailModel(msg.Item, msg.Items, msg.Index)
 		m.detail.topic = msg.Topic
 		m.activeScreen = ScreenDetail
+		m.detail.width = m.width
+		m.detail.height = contentH
 		return m, m.detail.Init()
 
 	case BannersLoadedMsg:
@@ -433,8 +456,12 @@ func (m AppModel) renderHelpOverlay(width int) string {
 
 // Run starts the Bubble Tea program.
 func Run(banners []BannerMsg) error {
+	holder := &programHolder{}
 	model := NewAppModel(banners)
+	model.programRef = holder
+	model.dashboard.programRef = holder
 	p := tea.NewProgram(model, tea.WithAltScreen())
+	holder.p = p
 	_, err := p.Run()
 	return err
 }

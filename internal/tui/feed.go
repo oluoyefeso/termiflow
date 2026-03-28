@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -72,6 +73,20 @@ func (m FeedModel) Update(msg tea.Msg) (FeedModel, tea.Cmd) {
 			m.err = msg.Err
 			return m, nil
 		}
+		// Sort by published_at DESC (newest first); items with no date sink to bottom
+		sort.Slice(msg.Items, func(i, j int) bool {
+			a, b := msg.Items[i].PublishedAt, msg.Items[j].PublishedAt
+			if a == nil && b == nil {
+				return false
+			}
+			if a == nil {
+				return false
+			}
+			if b == nil {
+				return true
+			}
+			return a.After(*b)
+		})
 		m.items = msg.Items
 		m.applyFilter()
 		m.cursor = 0
@@ -250,12 +265,12 @@ func (m FeedModel) ContentView(spinnerFrame int) string {
 	// Calculate visible area
 	visibleHeight := m.height - strings.Count(b.String(), "\n") - 1
 	if visibleHeight < 3 {
-		visibleHeight = 10
+		visibleHeight = 30 // fallback for uninitialized height
 	}
 	// Each item takes 2 lines + 1 blank = 3 lines
 	visibleItems := visibleHeight / 3
 	if visibleItems < 1 {
-		visibleItems = 5
+		visibleItems = 10
 	}
 
 	// Scroll window
@@ -306,10 +321,10 @@ func (m FeedModel) renderItem(item *models.FeedItem, selected bool, width int) s
 		}
 	}
 
-	// Relevance micro-bar (right-aligned)
+	// Relevance micro-bar (right-aligned, fixed width)
 	var scoreStr string
 	if item.RelevanceScore > 0 {
-		pct := fmt.Sprintf("%.0f%%", item.RelevanceScore*100)
+		pct := fmt.Sprintf("%3.0f%%", item.RelevanceScore*100)
 		scoreStr = RelevanceBar(item.RelevanceScore) + " " + StyleMuted.Render(pct)
 	}
 

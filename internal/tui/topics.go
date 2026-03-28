@@ -335,16 +335,18 @@ func (m TopicsModel) ContentView() string {
 	}
 	fmt.Fprintf(&b, "\n  %s    %s\n\n", subTab, availTab)
 
-	// Calculate column widths
+	// Calculate column widths (visual width for Unicode safety)
 	topicWidth := 20
 	for _, info := range m.subscribed {
-		if len(info.Sub.Topic) > topicWidth {
-			topicWidth = len(info.Sub.Topic)
+		w := lipgloss.Width(info.Sub.Topic)
+		if w > topicWidth {
+			topicWidth = w
 		}
 	}
 	for _, cat := range m.available {
-		if len(cat.Name) > topicWidth {
-			topicWidth = len(cat.Name)
+		w := lipgloss.Width(cat.Name)
+		if w > topicWidth {
+			topicWidth = w
 		}
 	}
 	topicWidth += 2
