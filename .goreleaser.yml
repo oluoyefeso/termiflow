@@ -104,7 +104,7 @@ release:
 
     **Using Homebrew (macOS/Linux):**
     ```bash
-    brew install termiflow/tap/termiflow
+    brew install oluoyefeso/tap/termiflow
     ```
 
     **Manual download:**
@@ -120,7 +120,7 @@ brews:
     homepage: "https://github.com/oluoyefeso/termiflow"
     description: "Terminal-native AI intelligence tool for developers"
     license: "GPL-3.0"
-    skip_upload: true
+    skip_upload: false
     test: |
       system "#{bin}/termiflow", "version"
     install: |
