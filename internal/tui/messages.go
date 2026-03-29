@@ -223,3 +223,9 @@ type SourceUpdatedMsg struct {
 	Name string
 	Err  error
 }
+
+// ThemeCycledMsg signals that the theme was cycled to a new value.
+type ThemeCycledMsg struct {
+	Name string
+	Err  error
+}

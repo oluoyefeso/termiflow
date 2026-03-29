@@ -15,6 +15,7 @@ import (
 	"github.com/oluoyefeso/termiflow/internal/db"
 	"github.com/oluoyefeso/termiflow/internal/scheduler"
 	"github.com/oluoyefeso/termiflow/internal/tui/components"
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
 const autoRefreshInterval = 30 * time.Minute
@@ -120,6 +121,30 @@ func autoRefreshTick() tea.Cmd {
 // autoRefreshTickMsg is the internal tick message for auto-refresh.
 type autoRefreshTickMsg struct{}
 
+// cycleTheme advances to the next theme and persists the choice.
+func cycleTheme() tea.Msg {
+	names := ui.ThemeNames()
+	current := ui.Current.Name
+	next := names[0]
+	for i, name := range names {
+		if name == current && i+1 < len(names) {
+			next = names[i+1]
+			break
+		}
+	}
+
+	if err := ui.LoadTheme(next); err != nil {
+		return ThemeCycledMsg{Err: err}
+	}
+	InitStyles()
+
+	// Persist to config
+	config.Set("general.theme", next)
+	_ = config.SaveConfig(config.GetConfigPath())
+
+	return ThemeCycledMsg{Name: next}
+}
+
 func (m DashboardModel) Init() tea.Cmd {
 	return tea.Batch(loadSubscriptions, autoRefreshTick())
 }
@@ -221,6 +246,8 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return SwitchScreenMsg{Screen: ScreenStatus}
 			}
+		case key.Matches(msg, DashboardKeys.Theme):
+			return m, cycleTheme
 		}
 
 	case tea.WindowSizeMsg:
@@ -245,6 +272,7 @@ func (m DashboardModel) StatusHints() []components.KeyHint {
 		{Key: "s", Desc: "sources"},
 		{Key: "r", Desc: "refresh"},
 		{Key: "i", Desc: "info"},
+		{Key: "T", Desc: "theme"},
 	}
 }
 

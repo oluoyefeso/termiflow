@@ -27,6 +27,7 @@ type DashboardKeyMap struct {
 	Refresh key.Binding
 	Sources key.Binding
 	Status  key.Binding
+	Theme   key.Binding
 	Up      key.Binding
 	Down    key.Binding
 }
@@ -55,6 +56,10 @@ var DashboardKeys = DashboardKeyMap{
 	Status: key.NewBinding(
 		key.WithKeys("i", "I"),
 		key.WithHelp("i", "info"),
+	),
+	Theme: key.NewBinding(
+		key.WithKeys("T"),
+		key.WithHelp("T", "theme"),
 	),
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
