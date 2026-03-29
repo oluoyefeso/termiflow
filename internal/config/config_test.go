@@ -76,8 +76,8 @@ func TestLoadWithDefaults(t *testing.T) {
 	if c.General.DefaultProvider != DefaultProvider {
 		t.Errorf("DefaultProvider = %q, want %q", c.General.DefaultProvider, DefaultProvider)
 	}
-	if c.General.OutputStyle != DefaultOutputStyle {
-		t.Errorf("OutputStyle = %q, want %q", c.General.OutputStyle, DefaultOutputStyle)
+	if c.General.Theme != DefaultTheme {
+		t.Errorf("Theme = %q, want %q", c.General.Theme, DefaultTheme)
 	}
 	if c.General.FeedLimit != DefaultFeedLimit {
 		t.Errorf("FeedLimit = %d, want %d", c.General.FeedLimit, DefaultFeedLimit)
@@ -102,7 +102,7 @@ func TestLoadWithValues(t *testing.T) {
 	configContent := `
 [general]
 default_provider = "anthropic"
-output_style = "minimal"
+theme = "dracula"
 feed_limit = 50
 
 [providers.openai]
@@ -131,8 +131,8 @@ daily_time = "09:00"
 	if c.General.DefaultProvider != "anthropic" {
 		t.Errorf("DefaultProvider = %q, want %q", c.General.DefaultProvider, "anthropic")
 	}
-	if c.General.OutputStyle != "minimal" {
-		t.Errorf("OutputStyle = %q, want %q", c.General.OutputStyle, "minimal")
+	if c.General.Theme != "dracula" {
+		t.Errorf("Theme = %q, want %q", c.General.Theme, "dracula")
 	}
 	if c.General.FeedLimit != 50 {
 		t.Errorf("FeedLimit = %d, want %d", c.General.FeedLimit, 50)
@@ -309,8 +309,8 @@ func TestDefaults(t *testing.T) {
 	if DefaultProvider != "openai" {
 		t.Errorf("DefaultProvider = %q, want %q", DefaultProvider, "openai")
 	}
-	if DefaultOutputStyle != "pretty" {
-		t.Errorf("DefaultOutputStyle = %q, want %q", DefaultOutputStyle, "pretty")
+	if DefaultTheme != "amber" {
+		t.Errorf("DefaultTheme = %q, want %q", DefaultTheme, "amber")
 	}
 	if DefaultFeedLimit != 20 {
 		t.Errorf("DefaultFeedLimit = %d, want %d", DefaultFeedLimit, 20)

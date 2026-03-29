@@ -4,96 +4,86 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/oluoyefeso/termiflow/internal/ui"
 )
 
-// Termiflow palette — warm amber on dark, matching termiflow.com (#f5a623)
+// Color aliases — set by InitStyles() from ui package vars.
 var (
-	ColorPrimary   = lipgloss.Color("214") // Amber (#f5a623)
-	ColorSecondary = lipgloss.Color("180") // Warm tan (#d7c3ae)
-	ColorSuccess   = lipgloss.Color("78")  // Green (#22c55e)
-	ColorWarning   = lipgloss.Color("208") // Orange
-	ColorError     = lipgloss.Color("196") // Red
-	ColorMuted     = lipgloss.Color("242") // Dark gray (#666666)
-	ColorAccent    = lipgloss.Color("220") // Bright amber (#ffb955)
-	ColorCyan      = lipgloss.Color("39")  // Cyan (#3ac2ff)
-	ColorBlue      = lipgloss.Color("33")  // Update banners
-
-	// Text styles
-	StyleTitle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(ColorPrimary)
-
-	StyleAccent = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(ColorAccent)
-
-	StyleMuted = lipgloss.NewStyle().
-			Foreground(ColorMuted)
-
-	// Warm muted for secondary text (source, time, descriptions)
-	StyleWarmMuted = lipgloss.NewStyle().
-			Foreground(ColorSecondary)
-
-	// Italic warm muted for summaries/descriptions
-	StyleSummary = lipgloss.NewStyle().
-			Italic(true).
-			Foreground(ColorSecondary)
-
-	StyleSuccess = lipgloss.NewStyle().
-			Foreground(ColorSuccess)
-
-	StyleWarning = lipgloss.NewStyle().
-			Foreground(ColorWarning)
-
-	StyleError = lipgloss.NewStyle().
-			Foreground(ColorError)
-
-	StyleCyan = lipgloss.NewStyle().
-			Foreground(ColorCyan)
-
-	StyleBlue = lipgloss.NewStyle().
-			Foreground(ColorBlue)
-
-	// Selected item in lists
-	StyleSelected = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(ColorAccent)
-
-	StyleSelectedIndicator = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(ColorPrimary)
-
-	// Unread badge
-	StyleUnreadBadge = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(ColorPrimary)
-
-	// Tag style — uppercase, no brackets
-	StyleTag = lipgloss.NewStyle().
-			Foreground(ColorPrimary)
-
-	// Inverted key style for status bar (amber bg, black fg)
-	StyleInvertedKey = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("0")).
-				Background(ColorPrimary)
-
-	// Selected item background
-	StyleSelectedBg = lipgloss.NewStyle().
-			Background(lipgloss.Color("236"))
-
-	// Left border accent for unread/active items
-	StyleLeftBorder = lipgloss.NewStyle().
-			Foreground(ColorPrimary)
-
-	// Left border muted for read items
-	StyleLeftBorderMuted = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("238"))
-
-	// Dotted separator
-	StyleDotSeparator = lipgloss.NewStyle().
-				Foreground(ColorMuted)
+	ColorPrimary   lipgloss.Color
+	ColorSecondary lipgloss.Color
+	ColorSuccess   lipgloss.Color
+	ColorWarning   lipgloss.Color
+	ColorError     lipgloss.Color
+	ColorMuted     lipgloss.Color
+	ColorAccent    lipgloss.Color
+	ColorCyan      lipgloss.Color
+	ColorBlue      lipgloss.Color
 )
+
+// Style vars — recomputed by InitStyles().
+var (
+	StyleTitle             lipgloss.Style
+	StyleAccent            lipgloss.Style
+	StyleMuted             lipgloss.Style
+	StyleWarmMuted         lipgloss.Style
+	StyleSummary           lipgloss.Style
+	StyleSuccess           lipgloss.Style
+	StyleWarning           lipgloss.Style
+	StyleError             lipgloss.Style
+	StyleCyan              lipgloss.Style
+	StyleBlue              lipgloss.Style
+	StyleSelected          lipgloss.Style
+	StyleSelectedIndicator lipgloss.Style
+	StyleUnreadBadge       lipgloss.Style
+	StyleTag               lipgloss.Style
+	StyleInvertedKey       lipgloss.Style
+	StyleSelectedBg        lipgloss.Style
+	StyleLeftBorder        lipgloss.Style
+	StyleLeftBorderMuted   lipgloss.Style
+	StyleDotSeparator      lipgloss.Style
+)
+
+// InitStyles aliases tui color vars from ui and recomputes all tui styles.
+// Must be called after ui.LoadTheme().
+func InitStyles() {
+	ColorPrimary = ui.Primary
+	ColorSecondary = ui.Secondary
+	ColorSuccess = ui.SuccessColor
+	ColorWarning = ui.WarningColor
+	ColorError = ui.ErrorColor
+	ColorMuted = ui.Muted
+	ColorAccent = ui.Accent
+	ColorCyan = ui.CyanColor
+	ColorBlue = ui.BlueColor
+
+	StyleTitle = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary)
+	StyleAccent = lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
+	StyleMuted = lipgloss.NewStyle().Foreground(ColorMuted)
+	StyleWarmMuted = lipgloss.NewStyle().Foreground(ColorSecondary)
+	StyleSummary = lipgloss.NewStyle().Italic(true).Foreground(ColorSecondary)
+	StyleSuccess = lipgloss.NewStyle().Foreground(ColorSuccess)
+	StyleWarning = lipgloss.NewStyle().Foreground(ColorWarning)
+	StyleError = lipgloss.NewStyle().Foreground(ColorError)
+	StyleCyan = lipgloss.NewStyle().Foreground(ColorCyan)
+	StyleBlue = lipgloss.NewStyle().Foreground(ColorBlue)
+	StyleSelected = lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
+	StyleSelectedIndicator = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary)
+	StyleUnreadBadge = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary)
+	StyleTag = lipgloss.NewStyle().Foreground(ColorPrimary)
+
+	StyleInvertedKey = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(ui.Current.InvertedFg).
+		Background(ColorPrimary)
+
+	StyleSelectedBg = lipgloss.NewStyle().
+		Background(ui.Current.SelectedBg)
+
+	StyleLeftBorder = lipgloss.NewStyle().Foreground(ColorPrimary)
+	StyleLeftBorderMuted = lipgloss.NewStyle().Foreground(ui.Current.MutedBorder)
+	StyleDotSeparator = lipgloss.NewStyle().Foreground(ColorMuted)
+}
 
 // HealthDot returns a colored dot for the given health status.
 func HealthDot(status string) string {

@@ -65,16 +65,22 @@ No browser switching, no context loss, no noise. Just signal.`,
 			return nil
 		}
 		if cmd.Parent() != nil && cmd.Parent().Name() == "config" && cmd.Name() == "init" {
+			// Load default theme so ui.Success() etc. render with colors
+			_ = ui.LoadTheme("")
+			tui.InitStyles()
 			return nil
 		}
 
-		// Apply no-color setting
+		// Apply no-color setting (check env var + flag, before config load)
+		if os.Getenv("NO_COLOR") != "" {
+			noColor = true
+		}
 		if noColor {
 			ui.NoColor(true)
 		}
 
 		// Load config
-		_, err := config.Load(cfgFile)
+		cfg, err := config.Load(cfgFile)
 		if err != nil {
 			// Config file not found is okay for init
 			if cmd.Name() == "init" {
@@ -82,6 +88,12 @@ No browser switching, no context loss, no noise. Just signal.`,
 			}
 			return fmt.Errorf("failed to load config: %w", err)
 		}
+
+		// Load theme and initialize styles
+		if err := ui.LoadTheme(cfg.General.Theme); err != nil {
+			return fmt.Errorf("failed to load theme: %w", err)
+		}
+		tui.InitStyles()
 
 		// Initialize database
 		if err := db.Init(); err != nil {

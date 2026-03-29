@@ -55,3 +55,26 @@ func TestRenderMarkdownFallback(t *testing.T) {
 		t.Errorf("expected text content preserved, got %q", out)
 	}
 }
+
+func TestGlamourStyleCaching(t *testing.T) {
+	if err := LoadTheme("amber"); err != nil {
+		t.Fatalf("LoadTheme error: %v", err)
+	}
+	if GetGlamourStyle() == nil {
+		t.Error("expected cachedGlamourStyle to be non-nil after LoadTheme")
+	}
+}
+
+func TestGlamourThemed(t *testing.T) {
+	if err := LoadTheme("dracula"); err != nil {
+		t.Fatalf("LoadTheme error: %v", err)
+	}
+	out := RenderMarkdown("# Hello", 72)
+	if !strings.Contains(out, "Hello") {
+		t.Errorf("themed render should contain 'Hello', got %q", out)
+	}
+	// Output should be styled (longer than raw input)
+	if len(out) <= len("# Hello") {
+		t.Errorf("expected styled output longer than raw input, got %d bytes", len(out))
+	}
+}
