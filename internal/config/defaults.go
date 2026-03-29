@@ -1,12 +1,12 @@
 package config
 
 const (
-	DefaultProvider    = "openai"
-	DefaultOutputStyle = "pretty"
-	DefaultFeedLimit   = 20
-	DefaultFrequency   = "daily"
-	DefaultDailyTime   = "08:00"
-	DefaultWeeklyDay   = 1
+	DefaultProvider  = "openai"
+	DefaultTheme     = "amber"
+	DefaultFeedLimit = 20
+	DefaultFrequency = "daily"
+	DefaultDailyTime = "08:00"
+	DefaultWeeklyDay = 1
 
 	DefaultOpenAIModel    = "gpt-4o"
 	DefaultOpenAIBaseURL  = "https://api.openai.com/v1"

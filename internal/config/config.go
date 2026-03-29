@@ -18,7 +18,7 @@ type Config struct {
 
 type GeneralConfig struct {
 	DefaultProvider string `mapstructure:"default_provider"`
-	OutputStyle     string `mapstructure:"output_style"`
+	Theme           string `mapstructure:"theme"`
 	CacheDir        string `mapstructure:"cache_dir"`
 	FeedLimit       int    `mapstructure:"feed_limit"`
 }
@@ -125,7 +125,7 @@ func Load(configPath string) (*Config, error) {
 
 func setDefaults() {
 	viper.SetDefault("general.default_provider", DefaultProvider)
-	viper.SetDefault("general.output_style", DefaultOutputStyle)
+	viper.SetDefault("general.theme", DefaultTheme)
 	viper.SetDefault("general.cache_dir", DefaultCacheDir())
 	viper.SetDefault("general.feed_limit", DefaultFeedLimit)
 

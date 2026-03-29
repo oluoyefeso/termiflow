@@ -140,7 +140,8 @@ func Tags(tags []string) string {
 }
 
 // warmMutedItalic is an italic warm muted style for CLI summary text.
-var warmMutedItalic = lipgloss.NewStyle().Italic(true).Foreground(Secondary)
+// Recomputed by LoadTheme().
+var warmMutedItalic lipgloss.Style
 
 func FormatFeedItem(title, source, timeAgo, summary string, tags []string) string {
 	var b strings.Builder
