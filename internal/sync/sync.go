@@ -361,8 +361,22 @@ func mergeSubscriptions(ctx context.Context, serverSubs []serverSubscription) {
 		} else {
 			// Both have it: server-wins for metadata
 			localSub := localMap[serverSub.Topic]
+			changed := false
 			if localSub.Frequency != serverSub.Frequency {
 				localSub.Frequency = serverSub.Frequency
+				changed = true
+			}
+			if serverSub.SourceURL != "" && (localSub.SourceURL != serverSub.SourceURL ||
+				localSub.SourceType != serverSub.SourceType ||
+				localSub.DisplayName != serverSub.DisplayName ||
+				localSub.Context != serverSub.Context) {
+				localSub.SourceURL = serverSub.SourceURL
+				localSub.SourceType = serverSub.SourceType
+				localSub.DisplayName = serverSub.DisplayName
+				localSub.Context = serverSub.Context
+				changed = true
+			}
+			if changed {
 				_ = db.UpdateSubscription(localSub)
 			}
 		}
