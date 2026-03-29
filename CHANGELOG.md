@@ -2,6 +2,25 @@
 
 All notable changes to termiflow are documented here.
 
+## [0.3.12.0] - 2026-03-29 — User-Selectable Themes
+
+### Added
+- **Theme system**: 3 built-in color themes (amber, light, dracula) selectable via `termiflow config set general.theme <name>`. Amber is the default, matching the existing palette. Light theme uses dark foreground colors for light terminal backgrounds. Dracula theme uses the official Dracula spec colors.
+- **Theme struct**: 15-field `Theme` type in `internal/ui/theme.go` with `LoadTheme()` that recomputes all CLI and TUI style variables from a single source of truth.
+- **TUI `InitStyles()`**: New function in `internal/tui/styles.go` that aliases TUI color vars from the ui package, eliminating the duplicate palette definitions.
+- **Themed glamour rendering**: Markdown rendering now uses theme-specific `ansi.StyleConfig` instead of auto-detection, so `ask` command output matches the active theme.
+- **`ValidateThemeName()`**: Validates theme names without mutating global state, used by `config set`.
+- **`NO_COLOR` environment variable support**: Follows the https://no-color.org/ standard. Previously only the `--no-color` CLI flag worked.
+- **Tests**: 13 new tests across theme_test.go, styles_test.go, output_test.go, markdown_test.go, and cli_test.go.
+
+### Changed
+- **Config field rename**: `general.output_style` (unused dead code) replaced with `general.theme`. Config templates and example.toml updated.
+- **Boot sequence**: Now loads theme after config and initializes TUI styles before any rendering. `config init` loads default amber theme for styled output during first-run setup.
+
+### Removed
+- **`DefaultOutputStyle`**: Replaced by `DefaultTheme = "amber"`.
+- **Hardcoded color initializers**: `ui/colors.go` and `tui/styles.go` no longer hardcode values at package init time. All colors are set by `LoadTheme()`.
+
 ## [0.3.11.0] - 2026-03-28 — Glamour Markdown Rendering
 
 ### Added

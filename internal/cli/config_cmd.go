@@ -60,11 +60,20 @@ var configSetCmd = &cobra.Command{
 	Short: "Set a configuration value",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		config.Set(args[0], args[1])
+		key, value := args[0], args[1]
+
+		// Validate theme names
+		if key == "general.theme" {
+			if err := ui.ValidateThemeName(value); err != nil {
+				return err
+			}
+		}
+
+		config.Set(key, value)
 		if err := config.SaveConfig(config.GetConfigPath()); err != nil {
 			return fmt.Errorf("failed to save config: %w", err)
 		}
-		fmt.Print(ui.Success(fmt.Sprintf("Set %s = %s", args[0], args[1])))
+		fmt.Print(ui.Success(fmt.Sprintf("Set %s = %s", key, value)))
 		return nil
 	},
 }
@@ -96,7 +105,7 @@ func showConfig(cmd *cobra.Command, args []string) {
 	// General section
 	fmt.Println(ui.BoldStyle.Render(" General"))
 	fmt.Print(ui.Info("Default provider", cfg.General.DefaultProvider))
-	fmt.Print(ui.Info("Output style", cfg.General.OutputStyle))
+	fmt.Print(ui.Info("Theme", cfg.General.Theme))
 	fmt.Print(ui.Info("Feed limit", fmt.Sprintf("%d", cfg.General.FeedLimit)))
 	fmt.Println()
 
@@ -244,7 +253,7 @@ func writeManagedConfig(path, managedKey string) error {
 
 [general]
 default_provider = "managed"
-output_style = "pretty"
+theme = "amber"
 cache_dir = "~/.cache/termiflow"
 feed_limit = 20
 
@@ -267,8 +276,8 @@ func writeDefaultConfig(path, openaiKey, anthropicKey, tavilyKey string) error {
 # Default LLM provider: "openai", "anthropic", "local"
 default_provider = "%s"
 
-# Output style: "pretty", "minimal", "plain"
-output_style = "pretty"
+# Color theme: "amber", "light", "dracula"
+theme = "amber"
 
 # Cache directory for offline mode
 cache_dir = "~/.cache/termiflow"

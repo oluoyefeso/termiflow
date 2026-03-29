@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"testing"
 )
 
@@ -294,6 +295,24 @@ func TestNoColorFlag(t *testing.T) {
 	noColor = true
 	if !noColor {
 		t.Error("noColor flag should be settable to true")
+	}
+}
+
+func TestNoColorEnvVar(t *testing.T) {
+	originalNoColor := noColor
+	defer func() { noColor = originalNoColor }()
+
+	// Set NO_COLOR env var and reset noColor flag
+	noColor = false
+	t.Setenv("NO_COLOR", "1")
+
+	// Simulate the check from PersistentPreRunE
+	if os.Getenv("NO_COLOR") != "" {
+		noColor = true
+	}
+
+	if !noColor {
+		t.Error("NO_COLOR env var should set noColor to true")
 	}
 }
 

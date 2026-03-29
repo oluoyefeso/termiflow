@@ -5,8 +5,8 @@
 # Default LLM provider: "openai", "anthropic", "local"
 default_provider = "openai"
 
-# Output style: "pretty", "minimal", "plain"
-output_style = "pretty"
+# Color theme: "amber", "light", "dracula"
+theme = "amber"
 
 # Cache directory for offline mode
 cache_dir = "~/.cache/termiflow"

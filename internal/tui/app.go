@@ -438,6 +438,7 @@ func (m AppModel) renderHelpOverlay(width int) string {
 			{"s", "sources (RSS/blogs)"},
 			{"r", "refresh all feeds"},
 			{"i", "system info"},
+			{"T", "cycle color theme"},
 			{"?", "close help"},
 			{"q, ctrl+c", "quit"},
 		}
