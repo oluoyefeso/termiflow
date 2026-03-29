@@ -154,12 +154,12 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Check for managed API key first
-	fmt.Print("Do you have a termiflow API key? (y/N): ")
+	// Check for managed API key first (default: yes, since most users sign up via termiflow.com)
+	fmt.Print("Do you have a termiflow API key? (Y/n): ")
 	managedAnswer, _ := reader.ReadString('\n')
 	managedAnswer = strings.TrimSpace(strings.ToLower(managedAnswer))
 
-	if managedAnswer == "y" || managedAnswer == "yes" {
+	if managedAnswer != "n" && managedAnswer != "no" {
 		// Check if key already exists
 		existingKey := config.GetString("providers.managed.api_key")
 		if existingKey != "" {
