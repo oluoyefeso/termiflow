@@ -2,18 +2,13 @@
 
 ## Post-MVP (UX improvements)
 
-### User-selectable terminal theme system
-**What:** Let users pick a color theme in settings (`termiflow config set theme <name>`) that controls the entire app's palette: TUI chrome, glamour markdown rendering, lipgloss styles.
-**Why:** Currently the amber-on-dark palette is hardcoded. Users with light terminals or different preferences can't customize.
-**Pros:** Ship with 2-3 built-in themes (dark-amber default, light, dracula). Glamour renderer already accepts style config.
-**Cons:** Need to thread theme config through all lipgloss style definitions. Medium effort.
-**Context:** `internal/ui/colors.go` (CLI palette), `internal/tui/styles.go` (TUI palette), `internal/ui/markdown.go` (glamour renderer). Glamour supports custom `ansi.StyleConfig`.
-**Depends on:** Glamour integration (shipped in v0.3.11.0).
-**Priority:** P3
-
 ---
 
 ## Done
+
+### User-selectable terminal theme system
+**Shipped in:** v0.3.12.0
+**What:** 3 built-in themes (amber, light, dracula) via `termiflow config set general.theme <name>`. Theme struct (15 fields) as single source of truth, LoadTheme() recomputes all CLI + TUI styles, themed glamour rendering, NO_COLOR env var support. 13 new tests.
 
 ### Glamour markdown rendering for ask command
 **Shipped in:** v0.3.11.0
